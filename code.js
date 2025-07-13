@@ -85,6 +85,14 @@ function createDefaultConfig() {
     imageFolder: "Ảnh khảo sát",
     randomizeQuestions: false,
     surveyNotes: "",
+    // Cấu hình giới hạn lịch khám
+    appointmentLimits: {
+      enabled: false,
+      startDate: "2025-07-26",
+      endDate: "2025-08-10",
+      morningLimit: 10,
+      afternoonLimit: 15
+    },
     questionGroups: [
       {
         id: "group_1",
@@ -110,6 +118,27 @@ function createDefaultConfig() {
             required: true,
             order: 2,
             placeholder: "Nhập tên công ty"
+          },
+          {
+            id: "q_appointment_date",
+            title: "Ngày khám",
+            icon: "fas fa-calendar",
+            type: "date",
+            required: true,
+            order: 3,
+            placeholder: "Chọn ngày khám"
+          },
+          {
+            id: "q_appointment_session",
+            title: "Buổi khám",
+            icon: "fas fa-clock",
+            type: "radio",
+            required: true,
+            order: 4,
+            options: [
+              { value: "morning", label: "Buổi sáng" },
+              { value: "afternoon", label: "Buổi chiều" }
+            ]
           }
         ]
       }
@@ -391,6 +420,165 @@ function uploadImages(imageBlobsJson, customerName, uniqueId) {
   }
   
   return results;
+}
+
+// Check appointment availability
+function checkAppointmentAvailability(selectedDate, selectedSession) {
+  try {
+    const config = getConfig();
+    
+    // Kiểm tra nếu appointment limits không được bật
+    if (!config.appointmentLimits || !config.appointmentLimits.enabled) {
+      return { available: true, message: 'Không có giới hạn lịch khám' };
+    }
+    
+    const limits = config.appointmentLimits;
+    const selected = new Date(selectedDate);
+    const startDate = new Date(limits.startDate);
+    const endDate = new Date(limits.endDate);
+    
+    // Kiểm tra ngày có trong khoảng cho phép không
+    if (selected < startDate || selected > endDate) {
+      return {
+        available: false,
+        message: `Chỉ có thể đăng ký từ ${formatDate(startDate)} đến ${formatDate(endDate)}`
+      };
+    }
+    
+    // Đếm số lượng đăng ký hiện tại cho ngày và buổi đã chọn
+    const count = getAppointmentCount(selectedDate, selectedSession);
+    const limit = selectedSession === 'morning' ? limits.morningLimit : limits.afternoonLimit;
+    
+    if (count >= limit) {
+      return {
+        available: false,
+        message: `Buổi ${selectedSession === 'morning' ? 'sáng' : 'chiều'} ngày ${formatDate(selected)} đã đủ ${limit} người. Vui lòng chọn ngày hoặc buổi khác.`
+      };
+    }
+    
+    return {
+      available: true,
+      message: `Còn ${limit - count} chỗ cho buổi ${selectedSession === 'morning' ? 'sáng' : 'chiều'} ngày ${formatDate(selected)}`
+    };
+    
+  } catch (error) {
+    console.error('Error checking appointment availability:', error);
+    return { available: true, message: 'Lỗi kiểm tra lịch khám' };
+  }
+}
+
+// Get appointment count for specific date and session
+function getAppointmentCount(selectedDate, selectedSession) {
+  try {
+    const config = getConfig();
+    
+    // Sử dụng spreadsheet bên ngoài nếu có cấu hình
+    let ss;
+    if (config.externalSpreadsheetId && config.externalSpreadsheetId.trim() !== '') {
+      try {
+        ss = SpreadsheetApp.openById(config.externalSpreadsheetId);
+      } catch (error) {
+        console.error('Không thể mở spreadsheet bên ngoài:', error);
+        ss = SpreadsheetApp.getActiveSpreadsheet();
+      }
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
+    const dataSheet = ss.getSheetByName(config.sheetName);
+    if (!dataSheet) return 0;
+    
+    const data = dataSheet.getDataRange().getValues();
+    if (data.length <= 1) return 0; // Chỉ có header
+    
+    // Tìm cột ngày khám và buổi khám
+    const headers = data[0];
+    let dateColumnIndex = -1;
+    let sessionColumnIndex = -1;
+    
+    // Tìm các cột có chứa từ khóa liên quan đến ngày và buổi
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i].toLowerCase();
+      if (header.includes('ngày') && header.includes('khám')) {
+        dateColumnIndex = i;
+      }
+      if (header.includes('buổi') && header.includes('khám')) {
+        sessionColumnIndex = i;
+      }
+    }
+    
+    if (dateColumnIndex === -1 || sessionColumnIndex === -1) {
+      console.log('Không tìm thấy cột ngày khám hoặc buổi khám');
+      return 0;
+    }
+    
+    // Đếm số lượng đăng ký
+    let count = 0;
+    const targetDate = new Date(selectedDate).toDateString();
+    
+    for (let i = 1; i < data.length; i++) {
+      const rowDate = new Date(data[i][dateColumnIndex]).toDateString();
+      const rowSession = data[i][sessionColumnIndex];
+      
+      if (rowDate === targetDate && rowSession === selectedSession) {
+        count++;
+      }
+    }
+    
+    return count;
+    
+  } catch (error) {
+    console.error('Error getting appointment count:', error);
+    return 0;
+  }
+}
+
+// Format date for display
+function formatDate(date) {
+  return date.toLocaleDateString('vi-VN');
+}
+
+// Validate appointment before saving
+function validateAndSaveFormData(formData) {
+  try {
+    // Tìm ngày khám và buổi khám trong formData
+    let selectedDate = null;
+    let selectedSession = null;
+    
+    const config = getConfig();
+    
+    // Tìm câu hỏi về ngày khám và buổi khám
+    config.questionGroups.forEach(group => {
+      group.questions.forEach(question => {
+        const questionTitle = question.title.toLowerCase();
+        if (questionTitle.includes('ngày') && questionTitle.includes('khám')) {
+          selectedDate = formData[question.id];
+        }
+        if (questionTitle.includes('buổi') && questionTitle.includes('khám')) {
+          selectedSession = formData[question.id];
+        }
+      });
+    });
+    
+    // Nếu có cấu hình appointment limits và tìm thấy thông tin ngày/buổi khám
+    if (selectedDate && selectedSession) {
+      const availability = checkAppointmentAvailability(selectedDate, selectedSession);
+      
+      if (!availability.available) {
+        return {
+          success: false,
+          error: availability.message
+        };
+      }
+    }
+    
+    // Nếu validation thành công, lưu dữ liệu
+    return saveFormData(formData);
+    
+  } catch (error) {
+    console.error('Error validating appointment:', error);
+    return saveFormData(formData); // Fallback to normal save if validation fails
+  }
 }
 
 // Admin functions

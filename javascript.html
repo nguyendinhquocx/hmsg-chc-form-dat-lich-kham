@@ -489,6 +489,11 @@ function generateSurveyInterface(config) {
     surveyContent.appendChild(backgroundDiv);
     surveyContent.appendChild(container);
 
+    // Setup appointment validation after form is created
+    setTimeout(() => {
+        setupAppointmentValidation();
+    }, 100);
+    
     // Hide main loading screen
     setTimeout(() => {
         const mainLoading = document.getElementById('mainLoading');
@@ -924,6 +929,20 @@ function loadAdminConfiguration() {
     document.getElementById('externalSpreadsheetId').value = currentConfig.externalSpreadsheetId || '';
     document.getElementById('randomizeQuestions').checked = currentConfig.randomizeQuestions || false;
     document.getElementById('surveyNotes').value = currentConfig.surveyNotes || '';
+    
+    // Load appointment limits configuration
+    const appointmentLimits = currentConfig.appointmentLimits || {};
+    document.getElementById('appointmentLimitsEnabled').checked = appointmentLimits.enabled || false;
+    document.getElementById('appointmentStartDate').value = appointmentLimits.startDate || '';
+    document.getElementById('appointmentEndDate').value = appointmentLimits.endDate || '';
+    document.getElementById('morningLimit').value = appointmentLimits.morningLimit || 10;
+    document.getElementById('afternoonLimit').value = appointmentLimits.afternoonLimit || 15;
+    
+    // Show/hide appointment limits config based on checkbox
+    toggleAppointmentLimitsConfig();
+    
+    // Add event listener for appointment limits checkbox
+    document.getElementById('appointmentLimitsEnabled').addEventListener('change', toggleAppointmentLimitsConfig);
     
     // Add event listener for primary color changes (real-time update)
     document.getElementById('primaryColor').addEventListener('input', function(e) {
@@ -1595,6 +1614,15 @@ function saveConfiguration() {
     currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
     currentConfig.surveyNotes = document.getElementById('surveyNotes').value;
     
+    // Update appointment limits configuration
+    currentConfig.appointmentLimits = {
+        enabled: document.getElementById('appointmentLimitsEnabled').checked,
+        startDate: document.getElementById('appointmentStartDate').value,
+        endDate: document.getElementById('appointmentEndDate').value,
+        morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
+        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15
+    };
+    
     document.getElementById('loadingOverlay').style.display = 'flex';
     
     google.script.run
@@ -1699,7 +1727,23 @@ function saveConfigToMemory() {
     currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
     currentConfig.surveyNotes = document.getElementById('surveyNotes').value;
     
+    // Update appointment limits configuration in memory
+    currentConfig.appointmentLimits = {
+        enabled: document.getElementById('appointmentLimitsEnabled').checked,
+        startDate: document.getElementById('appointmentStartDate').value,
+        endDate: document.getElementById('appointmentEndDate').value,
+        morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
+        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15
+    };
+    
     // Đã xóa bỏ việc cập nhật màu wave
+}
+
+// Toggle appointment limits configuration visibility
+function toggleAppointmentLimitsConfig() {
+    const enabled = document.getElementById('appointmentLimitsEnabled').checked;
+    const configDiv = document.getElementById('appointmentLimitsConfig');
+    configDiv.style.display = enabled ? 'block' : 'none';
 }
 
 // Form submission handling
@@ -1786,7 +1830,7 @@ function saveFormData(formData) {
             alert('Lỗi lưu dữ liệu: ' + error);
             document.getElementById('loadingOverlay').style.display = 'none';
         })
-        .saveFormData(formData);
+        .validateAndSaveFormData(formData);
 }
 
 // Image handling functions
@@ -2025,4 +2069,133 @@ window.addEventListener('click', function(e) {
         }
     });
 });
+
+// Appointment availability checking functions
+function setupAppointmentValidation() {
+    // Add event listeners for appointment date and session fields
+    const dateField = document.querySelector('[name="q_appointment_date"]');
+    const sessionFields = document.querySelectorAll('[name="q_appointment_session"]');
+    
+    if (dateField) {
+        // Set date limits based on configuration
+        if (currentConfig && currentConfig.appointmentLimits && currentConfig.appointmentLimits.enabled) {
+            dateField.min = currentConfig.appointmentLimits.startDate;
+            dateField.max = currentConfig.appointmentLimits.endDate;
+        }
+        
+        dateField.addEventListener('change', checkAppointmentAvailability);
+    }
+    
+    sessionFields.forEach(field => {
+        field.addEventListener('change', checkAppointmentAvailability);
+    });
+}
+
+function checkAppointmentAvailability() {
+    const dateField = document.querySelector('[name="q_appointment_date"]');
+    const sessionField = document.querySelector('[name="q_appointment_session"]:checked');
+    
+    if (!dateField || !sessionField || !dateField.value) {
+        return;
+    }
+    
+    const selectedDate = dateField.value;
+    const selectedSession = sessionField.value;
+    
+    // Show loading indicator
+    showAppointmentCheckingStatus('Đang kiểm tra tình trạng lịch hẹn...');
+    
+    google.script.run
+        .withSuccessHandler(function(result) {
+            hideAppointmentCheckingStatus();
+            
+            if (!result.available) {
+                showAppointmentUnavailableMessage(result.message, selectedDate, selectedSession);
+                // Clear the selection
+                dateField.value = '';
+                sessionField.checked = false;
+            } else {
+                hideAppointmentUnavailableMessage();
+            }
+        })
+        .withFailureHandler(function(error) {
+            hideAppointmentCheckingStatus();
+            console.error('Error checking appointment availability:', error);
+        })
+        .checkAppointmentAvailability(selectedDate, selectedSession);
+}
+
+function showAppointmentCheckingStatus(message) {
+    let statusDiv = document.getElementById('appointmentCheckingStatus');
+    if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'appointmentCheckingStatus';
+        statusDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(statusDiv);
+    }
+    statusDiv.textContent = message;
+    statusDiv.style.display = 'block';
+}
+
+function hideAppointmentCheckingStatus() {
+    const statusDiv = document.getElementById('appointmentCheckingStatus');
+    if (statusDiv) {
+        statusDiv.style.display = 'none';
+    }
+}
+
+function showAppointmentUnavailableMessage(message, date, session) {
+    let messageDiv = document.getElementById('appointmentUnavailableMessage');
+    if (!messageDiv) {
+        messageDiv = document.createElement('div');
+        messageDiv.id = 'appointmentUnavailableMessage';
+        messageDiv.style.cssText = `
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        `;
+        
+        // Insert after the session field
+        const sessionContainer = document.querySelector('[name="q_appointment_session"]').closest('.form-group');
+        if (sessionContainer) {
+            sessionContainer.parentNode.insertBefore(messageDiv, sessionContainer.nextSibling);
+        }
+    }
+    
+    const sessionText = session === 'morning' ? 'buổi sáng' : 'buổi chiều';
+    messageDiv.innerHTML = `
+        <strong>Lịch hẹn không khả dụng!</strong><br>
+        ${message}<br>
+        <small>Vui lòng chọn ngày hoặc buổi khác.</small>
+    `;
+    messageDiv.style.display = 'block';
+}
+
+function hideAppointmentUnavailableMessage() {
+    const messageDiv = document.getElementById('appointmentUnavailableMessage');
+    if (messageDiv) {
+        messageDiv.style.display = 'none';
+    }
+}
+
+// Setup appointment validation when form is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Delay setup to ensure form elements are created
+    setTimeout(setupAppointmentValidation, 1000);
+});
+
 </script>
