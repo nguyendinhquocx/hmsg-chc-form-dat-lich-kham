@@ -1,0 +1,1963 @@
+<!-- javascript.html -->
+<script>
+// Global variables
+let currentConfig = null;
+let isAdminMode = false;
+let currentEditingQuestion = null;
+let currentEditingGroup = null;
+let capturedImages = [];
+let currentIconTarget = null;
+const MAX_IMAGE_SIZE = 50 * 1024; // 50KB
+
+// Icon list for picker
+const ICON_LIST = [
+    // User & People
+    'fas fa-user', 'fas fa-users', 'fas fa-user-circle', 'fas fa-user-tie', 'fas fa-user-graduate',
+    'fas fa-user-friends', 'fas fa-baby', 'fas fa-child', 'fas fa-male', 'fas fa-female',
+    
+    // Buildings & Places
+    'fas fa-building', 'fas fa-home', 'fas fa-hospital', 'fas fa-school', 'fas fa-university',
+    'fas fa-store', 'fas fa-warehouse', 'fas fa-industry', 'fas fa-church', 'fas fa-mosque',
+    
+    // Communication
+    'fas fa-phone', 'fas fa-mobile-alt', 'fas fa-envelope', 'fas fa-comment', 'fas fa-comments',
+    'fas fa-sms', 'fas fa-video', 'fas fa-microphone', 'fas fa-bullhorn', 'fas fa-broadcast-tower',
+    
+    // Time & Calendar
+    'fas fa-calendar', 'fas fa-calendar-day', 'fas fa-calendar-week', 'fas fa-clock', 'fas fa-stopwatch',
+    'fas fa-hourglass', 'fas fa-history',
+    
+    // Rating & Feedback
+    'fas fa-star', 'fas fa-heart', 'fas fa-thumbs-up', 'fas fa-thumbs-down', 'fas fa-smile',
+    'fas fa-frown', 'fas fa-meh', 'fas fa-angry', 'fas fa-sad-tear', 'fas fa-laugh',
+    
+    // Actions
+    'fas fa-check', 'fas fa-times', 'fas fa-plus', 'fas fa-minus', 'fas fa-edit',
+    'fas fa-trash', 'fas fa-save', 'fas fa-download', 'fas fa-upload', 'fas fa-share',
+    
+    // Media & Files
+    'fas fa-camera', 'fas fa-image', 'fas fa-images', 'fas fa-file', 'fas fa-folder',
+    'fas fa-file-pdf', 'fas fa-file-word', 'fas fa-file-excel', 'fas fa-music', 'fas fa-video',
+    
+    // Navigation & Search
+    'fas fa-search', 'fas fa-filter', 'fas fa-sort', 'fas fa-list', 'fas fa-th',
+    'fas fa-bars', 'fas fa-arrow-up', 'fas fa-arrow-down', 'fas fa-arrow-left', 'fas fa-arrow-right',
+    
+    // Location & Transportation
+    'fas fa-map-marker-alt', 'fas fa-globe', 'fas fa-route', 'fas fa-compass', 'fas fa-location-arrow',
+    'fas fa-car', 'fas fa-plane', 'fas fa-ship', 'fas fa-bus', 'fas fa-bicycle',
+    'fas fa-motorcycle', 'fas fa-truck', 'fas fa-taxi', 'fas fa-subway',
+    
+    // Technology
+    'fas fa-wifi', 'fas fa-bluetooth', 'fas fa-battery-full', 'fas fa-laptop', 'fas fa-desktop',
+    'fas fa-tablet', 'fas fa-mobile', 'fas fa-headphones', 'fas fa-keyboard', 'fas fa-mouse',
+    
+    // Shopping & Money
+    'fas fa-shopping-cart', 'fas fa-shopping-bag', 'fas fa-credit-card', 'fas fa-money-bill', 'fas fa-coins',
+    'fas fa-gift', 'fas fa-tag', 'fas fa-barcode', 'fas fa-receipt', 'fas fa-cash-register',
+    
+    // Food & Drink
+    'fas fa-coffee', 'fas fa-utensils', 'fas fa-glass-martini', 'fas fa-birthday-cake', 'fas fa-pizza-slice',
+    'fas fa-hamburger', 'fas fa-apple-alt', 'fas fa-wine-glass', 'fas fa-beer', 'fas fa-ice-cream',
+    
+    // Health & Medical
+    'fas fa-heartbeat', 'fas fa-stethoscope', 'fas fa-pills', 'fas fa-syringe', 'fas fa-first-aid',
+    'fas fa-ambulance', 'fas fa-wheelchair', 'fas fa-tooth', 'fas fa-eye', 'fas fa-brain',
+    
+    // Sports & Activities
+    'fas fa-football-ball', 'fas fa-basketball-ball', 'fas fa-running', 'fas fa-swimming-pool',
+    'fas fa-dumbbell', 'fas fa-trophy', 'fas fa-medal', 'fas fa-flag-checkered', 'fas fa-gamepad',
+    
+    // Weather & Nature
+    'fas fa-sun', 'fas fa-moon', 'fas fa-cloud', 'fas fa-cloud-rain', 'fas fa-snowflake',
+    'fas fa-bolt', 'fas fa-rainbow', 'fas fa-tree', 'fas fa-leaf', 'fas fa-seedling',
+    
+    // Security & Safety
+    'fas fa-lock', 'fas fa-unlock', 'fas fa-key', 'fas fa-shield-alt', 'fas fa-user-secret',
+    'fas fa-fingerprint', 'fas fa-eye-slash', 'fas fa-ban', 'fas fa-exclamation-triangle', 'fas fa-fire',
+    
+    // System & Settings
+    'fas fa-question', 'fas fa-info', 'fas fa-exclamation', 'fas fa-cog', 'fas fa-tools',
+    'fas fa-wrench', 'fas fa-screwdriver', 'fas fa-hammer', 'fas fa-paint-brush', 'fas fa-palette'
+];
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadConfiguration();
+    // Thêm event listener cho dropdown dependent
+    const dropdownDependentCheck = document.getElementById('dropdownDependentCheck');
+    if (dropdownDependentCheck) {
+        dropdownDependentCheck.addEventListener('change', function() {
+            const container = document.getElementById('dependentOptionsContainer');
+            container.style.display = this.checked ? 'block' : 'none';
+            
+            // Ẩn/hiện phần options section
+            updateOptionsVisibility();
+            
+            if (this.checked) {
+                populateDependentQuestionList();
+            } else {
+                // Clear parent values khi uncheck
+                document.getElementById('parentValuesContainer').style.display = 'none';
+                document.getElementById('parentValuesList').innerHTML = '';
+            }
+        });
+    }
+});
+
+// Populate danh sách câu hỏi có thể phụ thuộc
+function populateDependentQuestionList() {
+    const select = document.getElementById('dependentQuestionSelect');
+    select.innerHTML = '<option value="">-- Chọn câu hỏi --</option>';
+    
+    if (!currentConfig || !currentConfig.questionGroups) return;
+    
+    // Lấy danh sách câu hỏi đã có dependent (để loại trừ)
+    const dependentQuestions = new Set();
+    currentConfig.questionGroups.forEach(group => {
+        group.questions.forEach(q => {
+            if (q.dependentOn) {
+                dependentQuestions.add(q.id);
+            }
+        });
+    });
+    
+    // Thêm các câu hỏi dropdown/radio/checkbox chưa bị phụ thuộc
+    currentConfig.questionGroups.forEach(group => {
+        group.questions.forEach(question => {
+            if (['select', 'radio', 'checkbox'].includes(question.type) && 
+                !dependentQuestions.has(question.id) &&
+                question.id !== (currentEditingQuestion?.id)) {
+                
+                const option = document.createElement('option');
+                option.value = question.id;
+                option.textContent = `${group.title} - ${question.title}`;
+                select.appendChild(option);
+            }
+        });
+    });
+}
+
+// Load danh sách giá trị của câu hỏi cha
+function loadParentQuestionValues() {
+    const parentQuestionId = document.getElementById('dependentQuestionSelect').value;
+    const parentValuesContainer = document.getElementById('parentValuesContainer');
+    const parentValuesList = document.getElementById('parentValuesList');
+    
+    if (!parentQuestionId) {
+        parentValuesContainer.style.display = 'none';
+        return;
+    }
+    
+    // Tìm câu hỏi cha
+    let parentQuestion = null;
+    for (const group of currentConfig.questionGroups) {
+        const found = group.questions.find(q => q.id === parentQuestionId);
+        if (found) {
+            parentQuestion = found;
+            break;
+        }
+    }
+    
+    if (!parentQuestion || !parentQuestion.options) {
+        parentValuesContainer.style.display = 'none';
+        return;
+    }
+    
+    // Hiển thị container
+    parentValuesContainer.style.display = 'block';
+    
+    // Clear existing content
+    parentValuesList.innerHTML = '';
+    
+    // Tạo danh sách giá trị với input fields
+    parentQuestion.options.forEach(option => {
+        const valueRow = document.createElement('div');
+        valueRow.className = 'parent-value-row';
+        
+        valueRow.innerHTML = `
+            <div class="parent-value-item">
+                <span class="parent-value-label">${option.label}</span>
+                <textarea class="dependent-value-input" 
+                          data-parent-value="${option.value}"
+                          placeholder="Nhập các giá trị con (cách nhau bởi ;)"
+                          rows="1"></textarea>
+            </div>
+        `;
+        
+        parentValuesList.appendChild(valueRow);
+    });
+    
+    // Load existing values nếu đang edit
+    loadExistingDependentValues();
+}
+
+// Load giá trị phụ thuộc đã có (khi edit)
+function loadExistingDependentValues() {
+    if (currentEditingQuestion && currentEditingQuestion.dependentOptions) {
+        const inputs = document.querySelectorAll('.dependent-value-input');
+        inputs.forEach(input => {
+            const parentValue = input.dataset.parentValue;
+            if (currentEditingQuestion.dependentOptions[parentValue]) {
+                input.value = currentEditingQuestion.dependentOptions[parentValue].join('; ');
+            }
+        });
+    }
+}
+
+// Load configuration from backend
+function loadConfiguration() {
+    google.script.run
+        .withSuccessHandler(function(config) {
+            currentConfig = config;
+            generateSurveyInterface(config);
+            document.getElementById('configLoading').style.display = 'none';
+        })
+        .withFailureHandler(function(error) {
+            console.error('Error loading config:', error);
+            alert('Lỗi tải cấu hình: ' + error);
+            document.getElementById('configLoading').style.display = 'none';
+        })
+        .getConfig();
+}
+
+// Open icon picker
+function openIconPicker(target) {
+    currentIconTarget = target;
+    const modal = document.getElementById('iconPickerModal');
+    
+    // Thêm search box nếu chưa có
+    if (!document.getElementById('iconSearch')) {
+        const searchDiv = document.createElement('div');
+        searchDiv.innerHTML = `
+            <input type="text" id="iconSearch" placeholder="Tìm kiếm icon..." 
+                   oninput="filterIcons(this.value)">
+        `;
+        
+        const iconGrid = document.getElementById('iconGrid');
+        iconGrid.parentNode.insertBefore(searchDiv, iconGrid);
+    } else {
+        // Clear search khi mở lại
+        document.getElementById('iconSearch').value = '';
+    }
+    
+    populateIcons(); // Hiển thị tất cả icons
+    modal.style.display = 'block';
+}
+
+// Function để filter icons
+function filterIcons(searchTerm) {
+    const filteredIcons = searchTerm ? 
+        ICON_LIST.filter(icon => icon.toLowerCase().includes(searchTerm.toLowerCase())) : 
+        ICON_LIST;
+        
+    populateIcons(filteredIcons);
+}
+
+// Function để populate icons
+function populateIcons(iconList = ICON_LIST) {
+    const iconGrid = document.getElementById('iconGrid');
+    iconGrid.innerHTML = '';
+    
+    iconList.forEach(iconClass => {
+        const iconItem = document.createElement('div');
+        iconItem.className = 'icon-item';
+        iconItem.onclick = () => selectIcon(iconClass);
+        
+        const iconName = iconClass.split(' ')[1].replace('fa-', '');
+        iconItem.innerHTML = `
+            <i class="${iconClass}"></i>
+            <span>${iconName}</span>
+        `;
+        
+        // Highlight current selected icon
+        const currentIcon = currentIconTarget === 'group' ? 
+            document.getElementById('groupIconInput').value : 
+            document.getElementById('questionIconInput').value;
+            
+        if (iconClass === currentIcon) {
+            iconItem.classList.add('selected');
+        }
+        
+        iconGrid.appendChild(iconItem);
+    });
+}
+
+// Select icon
+function selectIcon(iconClass) {
+    if (currentIconTarget === 'group') {
+        document.getElementById('groupIconInput').value = iconClass;
+        document.getElementById('selectedGroupIcon').className = iconClass;
+    } else if (currentIconTarget === 'question') {
+        document.getElementById('questionIconInput').value = iconClass;
+        document.getElementById('selectedQuestionIcon').className = iconClass;
+    }
+    
+    closeIconPicker();
+}
+
+// Close icon picker
+function closeIconPicker() {
+    document.getElementById('iconPickerModal').style.display = 'none';
+    currentIconTarget = null;
+}
+
+// Generate dynamic survey interface
+function generateSurveyInterface(config) {
+    applyTheme(config);
+    
+    const surveyContent = document.getElementById('surveyContent');
+    
+    // Background
+    const backgroundDiv = document.createElement('div');
+    backgroundDiv.className = 'animated-background';
+    if (config.backgroundUrl) {
+        backgroundDiv.style.backgroundImage = `url(${config.backgroundUrl})`;
+        backgroundDiv.style.backgroundSize = 'cover';
+        backgroundDiv.style.backgroundPosition = 'center';
+    } else {
+        // Default waves
+        backgroundDiv.innerHTML = `
+            <div class="wave wave1"></div>
+            <div class="wave wave2"></div>
+            <div class="wave wave3"></div>
+        `;
+    }
+    
+    // Main container
+    const container = document.createElement('div');
+    container.className = 'container';
+    
+    // background
+    if (config.logoUrl) {
+        const backgroundContainer = document.createElement('div');
+        backgroundContainer.className = 'background-container';
+        backgroundContainer.style.backgroundImage = `url(${config.logoUrl})`;
+        container.appendChild(backgroundContainer);
+    }
+    
+    // Card
+    const card = document.createElement('div');
+    card.className = 'card';
+    
+    // Header
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'card-header';
+    cardHeader.innerHTML = `<h1><i class="fas fa-clipboard-list"></i> ${config.surveyTitle}</h1>`;
+    
+    // Body
+    const cardBody = document.createElement('div');
+    cardBody.className = 'card-body';
+    
+    // Form
+    const form = document.createElement('form');
+    form.id = 'dynamicSurveyForm';
+    form.addEventListener('submit', handleFormSubmit);
+    
+    // PHÂN TRANG LOGIC
+    // Tìm tất cả các trang có sẵn
+    const allPages = new Set();
+    config.questionGroups.forEach(group => {
+        allPages.add(group.page || 1);
+    });
+    const sortedPages = Array.from(allPages).sort((a, b) => a - b);
+    
+    // Khởi tạo trang hiện tại
+    window.currentSurveyPage = 1;
+    window.totalSurveyPages = sortedPages.length;
+    window.surveyPagesArray = sortedPages;
+    
+    // Container cho các trang
+    const pagesContainer = document.createElement('div');
+    pagesContainer.id = 'pagesContainer';
+    
+    // Tạo các trang
+    sortedPages.forEach((pageNum, pageIndex) => {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'survey-page';
+        pageDiv.id = `page-${pageNum}`;
+        pageDiv.style.display = pageIndex === 0 ? 'block' : 'none';
+        
+        // Lấy các nhóm thuộc trang này
+        let pageGroups = config.questionGroups.filter(group => (group.page || 1) === pageNum);
+        
+        // Randomize nếu được bật
+        if (config.randomizeQuestions) {
+            pageGroups = [...pageGroups].sort(() => Math.random() - 0.5);
+            pageGroups.forEach(group => {
+                group.questions = [...group.questions].sort(() => Math.random() - 0.5);
+            });
+        }
+        
+        // Generate form fields cho trang này
+        pageGroups.forEach(group => {
+            if (group.questions && group.questions.length > 0) {
+                // Group title
+                const sectionTitle = document.createElement('div');
+                sectionTitle.className = 'section-title';
+                sectionTitle.innerHTML = `<h2><i class="${group.icon}"></i> ${group.title}</h2>`;
+                pageDiv.appendChild(sectionTitle);
+                
+                // Questions
+                group.questions.forEach(question => {
+                    const questionElement = generateQuestionElement(question);
+                    pageDiv.appendChild(questionElement);
+                });
+            }
+        });
+        
+        pagesContainer.appendChild(pageDiv);
+    });
+    
+    form.appendChild(pagesContainer);
+    
+    // Navigation buttons
+    const navContainer = document.createElement('div');
+    navContainer.className = 'page-navigation';
+
+    // Page indicator
+    const pageIndicator = document.createElement('div');
+    pageIndicator.id = 'pageIndicator';
+    pageIndicator.style.cssText = `
+        font-weight: 500;
+        color: var(--primary-color);
+        font-size: 16px;
+    `;
+    updatePageIndicator();
+
+    // Navigation buttons container
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.className = 'navigation-buttons';
+
+    // Previous button
+    const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
+    prevBtn.id = 'prevPageBtn';
+    prevBtn.className = 'btn btn-secondary';
+    prevBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Quay lại';
+    prevBtn.style.display = 'none'; // Ẩn ở trang đầu
+    prevBtn.onclick = () => navigatePage(-1);
+
+    // Next/Submit button
+    const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.id = 'nextPageBtn';
+    nextBtn.className = 'btn btn-primary';
+    nextBtn.innerHTML = sortedPages.length > 1 ? '<i class="fas fa-arrow-right"></i> Tiếp theo' : '<i class="fas fa-paper-plane"></i> Gửi Phản Hồi';
+    nextBtn.onclick = () => {
+        if (window.currentSurveyPage < window.totalSurveyPages) {
+            navigatePage(1);
+        } else {
+            submitForm();
+        }
+    };
+
+    // Assemble the structure
+    buttonsContainer.appendChild(prevBtn);
+    buttonsContainer.appendChild(nextBtn);
+
+    navContainer.appendChild(pageIndicator);
+    navContainer.appendChild(buttonsContainer);
+
+    form.appendChild(navContainer);
+    
+    cardBody.appendChild(form);
+    card.appendChild(cardHeader);
+    card.appendChild(cardBody);
+    container.appendChild(card);
+
+    // Set wave colors after DOM is updated
+    setTimeout(() => {
+        updateWaveColors(config.primaryColor);
+    }, 100);
+    
+    // Clear and set new content
+    surveyContent.innerHTML = '';
+    surveyContent.appendChild(backgroundDiv);
+    surveyContent.appendChild(container);
+
+    // Hide main loading screen
+    setTimeout(() => {
+        const mainLoading = document.getElementById('mainLoading');
+        if (mainLoading) {
+            mainLoading.style.opacity = '0';
+            setTimeout(() => {
+                mainLoading.style.display = 'none';
+            }, 500);
+        }
+    }, 1000); // Hiển thị loading ít nhất 1 giây
+}
+
+// Navigate between pages
+function navigatePage(direction) {
+    const currentPageIndex = window.surveyPagesArray.indexOf(window.currentSurveyPage);
+    const newPageIndex = currentPageIndex + direction;
+    
+    if (newPageIndex >= 0 && newPageIndex < window.totalSurveyPages) {
+        // Validate current page before moving
+        if (direction > 0 && !validateCurrentPage()) {
+            return;
+        }
+        
+        // Hide current page
+        document.getElementById(`page-${window.currentSurveyPage}`).style.display = 'none';
+        
+        // Update current page
+        window.currentSurveyPage = window.surveyPagesArray[newPageIndex];
+        
+        // Show new page
+        document.getElementById(`page-${window.currentSurveyPage}`).style.display = 'block';
+        
+        // Update navigation buttons
+        updateNavigationButtons();
+        updatePageIndicator();
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+}
+
+// Update page indicator
+function updatePageIndicator() {
+    const indicator = document.getElementById('pageIndicator');
+    if (indicator) {
+        const currentIndex = window.surveyPagesArray.indexOf(window.currentSurveyPage) + 1;
+        indicator.textContent = `Trang ${currentIndex} / ${window.totalSurveyPages}`;
+    }
+}
+
+// Validate current page required fields
+function validateCurrentPage() {
+    const currentPageDiv = document.getElementById(`page-${window.currentSurveyPage}`);
+    const requiredFields = currentPageDiv.querySelectorAll('[required]');
+    
+    for (let field of requiredFields) {
+        if (!field.value || (field.type === 'radio' && !currentPageDiv.querySelector(`[name="${field.name}"]:checked`))) {
+            field.focus();
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Add shake animation
+            const formGroup = field.closest('.form-group');
+            if (formGroup) {
+                formGroup.classList.add('shake');
+                setTimeout(() => formGroup.classList.remove('shake'), 600);
+            }
+            
+            return false;
+        }
+    }
+    return true;
+}
+
+// Submit form (called from next button on last page)
+function submitForm() {
+    const form = document.getElementById('dynamicSurveyForm');
+    if (form.checkValidity()) {
+        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+        form.dispatchEvent(submitEvent);
+    } else {
+        // Find first invalid field across all pages
+        for (let pageNum of window.surveyPagesArray) {
+            const pageDiv = document.getElementById(`page-${pageNum}`);
+            const invalidField = pageDiv.querySelector(':invalid');
+            if (invalidField) {
+                // Navigate to that page
+                document.getElementById(`page-${window.currentSurveyPage}`).style.display = 'none';
+                window.currentSurveyPage = pageNum;
+                pageDiv.style.display = 'block';
+                updateNavigationButtons();
+                updatePageIndicator();
+                
+                invalidField.focus();
+                invalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                break;
+            }
+        }
+    }
+}
+
+// Update navigation buttons
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    const buttonsContainer = document.querySelector('.navigation-buttons');
+    const currentIndex = window.surveyPagesArray.indexOf(window.currentSurveyPage);
+    
+    if (prevBtn) {
+        prevBtn.style.display = currentIndex > 0 ? 'flex' : 'none';
+    }
+    
+    if (nextBtn) {
+        const isLastPage = currentIndex === window.totalSurveyPages - 1;
+        nextBtn.innerHTML = isLastPage ? 
+            '<i class="fas fa-paper-plane"></i> Gửi Phản Hồi' : 
+            '<i class="fas fa-arrow-right"></i> Tiếp theo';
+    }
+    
+    // Add/remove class for CSS fallback (cho browsers không hỗ trợ :has())
+    if (buttonsContainer) {
+        if (currentIndex > 0) {
+            // Có 2 nút
+            buttonsContainer.classList.add('has-two-buttons');
+        } else {
+            // Chỉ có 1 nút
+            buttonsContainer.classList.remove('has-two-buttons');
+        }
+    }
+}
+
+// Generate individual question element
+function generateQuestionElement(question) {
+    const formGroup = document.createElement('div');
+    formGroup.className = 'form-group';
+    
+    const label = document.createElement('label');
+    label.innerHTML = `<i class="${question.icon}"></i> ${question.title}`;
+    if (question.required) {
+        label.innerHTML += ' <span class="required">*</span>';
+    }
+    
+    let inputElement;
+    
+    switch (question.type) {
+        case 'text':
+        case 'number':
+        case 'date':
+            inputElement = document.createElement('input');
+            inputElement.type = question.type;
+            inputElement.id = question.id;
+            inputElement.name = question.id;
+            inputElement.required = question.required;
+            if (question.placeholder) inputElement.placeholder = question.placeholder;
+            break;
+            
+        case 'textarea':
+            inputElement = document.createElement('textarea');
+            inputElement.id = question.id;
+            inputElement.name = question.id;
+            inputElement.required = question.required;
+            inputElement.rows = 4;
+            if (question.placeholder) inputElement.placeholder = question.placeholder;
+            break;
+            
+        case 'select':
+            inputElement = document.createElement('select');
+            inputElement.id = question.id;
+            inputElement.name = question.id;
+            inputElement.required = question.required;
+            
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            defaultOption.textContent = question.placeholder || '-- Chọn tùy chọn --';
+            inputElement.appendChild(defaultOption);
+            
+            // Nếu là dropdown phụ thuộc
+            if (question.dependentOn && question.dependentOptions) {
+                // Thêm class để nhận diện
+                inputElement.classList.add('dependent-dropdown');
+                inputElement.dataset.dependentOn = question.dependentOn;
+                inputElement.dataset.dependentOptions = JSON.stringify(question.dependentOptions);
+                
+                // Ban đầu disable dropdown con
+                inputElement.disabled = true;
+                
+                // Thêm event listener cho dropdown cha khi tạo form
+                setTimeout(() => {
+                    const parentSelect = document.querySelector(`[name="${question.dependentOn}"]`);
+                    if (parentSelect) {
+                        parentSelect.addEventListener('change', function() {
+                            updateDependentDropdown(inputElement, this.value, question.dependentOptions);
+                        });
+                    }
+                }, 100);
+            } else {
+                // Dropdown bình thường
+                (question.options || []).forEach(option => {
+                    const optElement = document.createElement('option');
+                    optElement.value = option.value;
+                    optElement.textContent = option.label;
+                    inputElement.appendChild(optElement);
+                });
+            }
+            break;
+            
+        case 'radio':
+        case 'checkbox':
+            inputElement = document.createElement('div');
+            inputElement.className = question.type === 'radio' ? 'radio-group' : 'checkbox-group';
+            
+            (question.options || []).forEach((option, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = question.type === 'radio' ? 'radio-item' : 'checkbox-item';
+                
+                const input = document.createElement('input');
+                input.type = question.type;
+                input.id = `${question.id}_${index}`;
+                input.name = question.id;
+                input.value = option.value;
+                input.required = question.required && question.type === 'radio';
+                
+                const itemLabel = document.createElement('label');
+                itemLabel.htmlFor = `${question.id}_${index}`;
+                itemLabel.textContent = option.label;
+                
+                itemDiv.appendChild(input);
+                itemDiv.appendChild(itemLabel);
+                inputElement.appendChild(itemDiv);
+            });
+            break;
+            
+        case 'rating':
+            inputElement = document.createElement('div');
+            inputElement.className = 'rating';
+            
+            for (let i = 5; i >= 1; i--) {
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.id = `${question.id}_star${i}`;
+                input.name = question.id;
+                input.value = i;
+                input.required = question.required;
+                
+                const ratingLabel = document.createElement('label');
+                ratingLabel.htmlFor = `${question.id}_star${i}`;
+                ratingLabel.title = getRatingTitle(i);
+                ratingLabel.textContent = i;
+                
+                inputElement.appendChild(input);
+                inputElement.appendChild(ratingLabel);
+            }
+            break;
+            
+        case 'file':
+            inputElement = document.createElement('div');
+            inputElement.className = 'image-upload-container';
+            inputElement.innerHTML = `
+                <p class="image-description">${question.placeholder || 'Chọn ảnh để tải lên'}</p>
+                <div class="upload-buttons">
+                    <button type="button" class="upload-btn btn" onclick="handleImageUploadClick(this)">
+                        <i class="fas fa-upload"></i> Tải ảnh lên
+                    </button>
+                </div>
+                <input type="file" class="image-input" accept="image/*" multiple style="display: none;" onchange="handleImageSelect(event)">
+                <div class="image-preview-container"></div>
+            `;
+            break;
+            
+        default:
+            inputElement = document.createElement('input');
+            inputElement.type = 'text';
+            inputElement.id = question.id;
+            inputElement.name = question.id;
+            inputElement.required = question.required;
+    }
+    
+    formGroup.appendChild(label);
+    formGroup.appendChild(inputElement);
+    
+    return formGroup;
+}
+
+// Thêm function mới để update dropdown phụ thuộc
+function updateDependentDropdown(childSelect, parentValue, dependentOptions) {
+    // Clear existing options (trừ option đầu tiên)
+    while (childSelect.children.length > 1) {
+        childSelect.removeChild(childSelect.lastChild);
+    }
+    
+    // Reset selection
+    childSelect.selectedIndex = 0;
+    
+    if (parentValue && dependentOptions[parentValue]) {
+        // Enable dropdown con
+        childSelect.disabled = false;
+        
+        // Thêm options tương ứng
+        dependentOptions[parentValue].forEach(optionText => {
+            const option = document.createElement('option');
+            option.value = optionText;
+            option.textContent = optionText;
+            childSelect.appendChild(option);
+        });
+    } else {
+        // Disable dropdown con nếu không có giá trị cha
+        childSelect.disabled = true;
+    }
+}
+
+// Get rating title
+function getRatingTitle(rating) {
+    const titles = {
+        5: 'Xuất sắc',
+        4: 'Tốt', 
+        3: 'Trung bình',
+        2: 'Kém',
+        1: 'Rất kém'
+    };
+    return titles[rating] || '';
+}
+
+// Apply theme from configuration
+function applyTheme(config) {
+    const root = document.documentElement;
+    root.style.setProperty('--primary-color', config.primaryColor);
+    root.style.setProperty('--secondary-color', config.secondaryColor);
+    root.style.setProperty('--text-color', config.textColor);
+    root.style.setProperty('--primary-dark', adjustBrightness(config.primaryColor, -20));
+    root.style.setProperty('--primary-light', adjustBrightness(config.primaryColor, 20));
+    
+    // Update wave background color
+    updateWaveColors(config.primaryColor);
+}
+
+// New function to update wave colors dynamically
+function updateWaveColors(primaryColor) {
+    // Convert hex to URL-encoded format for SVG
+    const encodedColor = encodeURIComponent(primaryColor);
+    
+    // Create SVG path with dynamic color
+    const svgPath = `data:image/svg+xml;utf8,<svg viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".05" fill="${encodedColor}"/></svg>`;
+    
+    // Update all wave elements
+    const waves = document.querySelectorAll('.wave1, .wave2, .wave3');
+    waves.forEach(wave => {
+        wave.style.backgroundImage = `url('${svgPath}')`;
+    });
+}
+
+// Adjust color brightness
+function adjustBrightness(color, percent) {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    const newR = Math.max(0, Math.min(255, r + (r * percent / 100)));
+    const newG = Math.max(0, Math.min(255, g + (g * percent / 100)));
+    const newB = Math.max(0, Math.min(255, b + (b * percent / 100)));
+    
+    return `#${Math.round(newR).toString(16).padStart(2, '0')}${Math.round(newG).toString(16).padStart(2, '0')}${Math.round(newB).toString(16).padStart(2, '0')}`;
+}
+
+// Admin Functions
+function showAdminLogin() {
+    document.getElementById('adminLoginModal').style.display = 'block';
+}
+
+function hideAdminLogin() {
+    document.getElementById('adminLoginModal').style.display = 'none';
+    document.getElementById('adminPassword').value = '';
+}
+
+function loginAdmin() {
+    const password = document.getElementById('adminPassword').value;
+    const loginBtn = document.querySelector('#adminLoginModal button[onclick="loginAdmin()"]');
+    
+    // Bắt đầu loading
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+    
+    google.script.run
+        .withSuccessHandler(function(isValid) {
+            // Kết thúc loading
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = 'Đăng nhập';
+            
+            if (isValid) {
+                isAdminMode = true;
+                hideAdminLogin();
+                showAdminInterface();
+            } else {
+                alert('Mật khẩu không đúng!');
+            }
+        })
+        .withFailureHandler(function(error) {
+            // Kết thúc loading khi có lỗi
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = 'Đăng nhập';
+            alert('Lỗi xác thực: ' + error);
+        })
+        .verifyAdminPassword(password);
+}
+
+function showAdminInterface() {
+    document.getElementById('surveyInterface').style.display = 'none';
+    document.getElementById('adminInterface').style.display = 'block';
+    loadAdminConfiguration();
+}
+
+function exitAdmin() {
+    isAdminMode = false;
+    document.getElementById('adminInterface').style.display = 'none';
+    document.getElementById('surveyInterface').style.display = 'block';
+}
+
+function loadAdminConfiguration() {
+    if (!currentConfig) return;
+    
+    // Load general settings
+    document.getElementById('surveyTitle').value = currentConfig.surveyTitle || '';
+    document.getElementById('logoUrl').value = currentConfig.logoUrl || '';
+    document.getElementById('backgroundUrl').value = currentConfig.backgroundUrl || '';
+    document.getElementById('primaryColor').value = currentConfig.primaryColor || '#d82c27';
+    document.getElementById('secondaryColor').value = currentConfig.secondaryColor || '#f8f8f8';
+    document.getElementById('textColor').value = currentConfig.textColor || '#333333';
+    document.getElementById('sheetName').value = currentConfig.sheetName || '';
+    document.getElementById('imageFolder').value = currentConfig.imageFolder || '';
+    document.getElementById('randomizeQuestions').checked = currentConfig.randomizeQuestions || false;
+    
+    // Add event listener for primary color changes (real-time update)
+    document.getElementById('primaryColor').addEventListener('input', function(e) {
+        if (isAdminMode) {
+            // Update wave colors in real-time while in admin mode
+            updateWaveColors(e.target.value);
+        }
+    });
+    
+    // Load question groups
+    renderQuestionGroups();
+}
+
+function renderQuestionGroups() {
+    const container = document.getElementById('questionGroupsContainer');
+    container.innerHTML = '';
+    
+    if (!currentConfig.questionGroups || currentConfig.questionGroups.length === 0) {
+        container.innerHTML = '<p class="empty-state">Chưa có nhóm câu hỏi nào. Hãy thêm nhóm câu hỏi đầu tiên!</p>';
+        return;
+    }
+    
+    currentConfig.questionGroups.sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    currentConfig.questionGroups.forEach(group => {
+        const groupElement = createGroupElement(group);
+        container.appendChild(groupElement);
+    });
+    
+    // Áp dụng sortable sau khi render xong
+    setTimeout(() => {
+        makeSortable(container, 'group');
+        
+        // Áp dụng sortable cho từng group questions
+        document.querySelectorAll('.group-questions').forEach(questionsContainer => {
+            makeSortable(questionsContainer, 'question');
+        });
+    }, 100);
+}
+
+function createGroupElement(group) {
+    const template = document.getElementById('groupTemplate');
+    const groupElement = template.content.cloneNode(true);
+    
+    const groupDiv = groupElement.querySelector('.group-item');
+    groupDiv.dataset.groupId = group.id;
+    
+    // THÊM: Hiển thị số trang bên ngoài
+    if (group.page && group.page > 1) {
+        const pageLabel = document.createElement('div');
+        pageLabel.className = 'group-page-label';
+        pageLabel.textContent = `Trang ${group.page}`;
+        groupDiv.insertBefore(pageLabel, groupDiv.firstChild);
+    }
+    
+    groupElement.querySelector('.group-icon').className = group.icon;
+    groupElement.querySelector('.group-title').textContent = group.title;
+    groupElement.querySelector('.question-count').textContent = `(${group.questions ? group.questions.length : 0} câu hỏi)`;
+    
+    // Render questions
+    const questionsContainer = groupElement.querySelector('.group-questions');
+    if (group.questions && group.questions.length > 0) {
+        group.questions.sort((a, b) => (a.order || 0) - (b.order || 0));
+        group.questions.forEach(question => {
+            const questionElement = createQuestionElement(question);
+            questionsContainer.appendChild(questionElement);
+        });
+        
+        makeSortable(questionsContainer, 'question');
+    }
+    
+    return groupElement;
+}
+
+function createQuestionElement(question) {
+    const template = document.getElementById('questionTemplate');
+    const questionElement = template.content.cloneNode(true);
+    
+    const questionDiv = questionElement.querySelector('.question-item');
+    questionDiv.dataset.questionId = question.id;
+    
+    questionElement.querySelector('.question-icon').className = question.icon;
+    questionElement.querySelector('.question-title').textContent = question.title;
+    questionElement.querySelector('.question-type-badge').textContent = getQuestionTypeLabel(question.type);
+    
+    const requiredBadge = questionElement.querySelector('.required-badge');
+    if (question.required) {
+        requiredBadge.style.display = 'inline';
+    } else {
+        requiredBadge.style.display = 'none';
+    }
+    
+    return questionElement;
+}
+
+function getQuestionTypeLabel(type) {
+    const labels = {
+        'text': 'Văn bản',
+        'textarea': 'Văn bản dài',
+        'radio': 'Lựa chọn đơn',
+        'checkbox': 'Lựa chọn nhiều',
+        'select': 'Dropdown',
+        'date': 'Ngày tháng',
+        'number': 'Số',
+        'rating': 'Đánh giá',
+        'file': 'Upload'
+    };
+    return labels[type] || type;
+}
+
+// Sortable functionality
+function makeSortable(container, type) {
+    let draggedElement = null;
+    
+    // Đảm bảo tất cả items có thể drag
+    function enableDragging() {
+        const items = container.querySelectorAll(type === 'group' ? '.group-item' : '.question-item');
+        items.forEach(item => {
+            item.draggable = true;
+            item.style.cursor = 'move';
+        });
+    }
+    
+    container.addEventListener('dragstart', function(e) {
+        // Cho phép drag bất kỳ item nào, không chỉ drag-handle
+        const targetItem = e.target.closest(type === 'group' ? '.group-item' : '.question-item');
+        if (targetItem) {
+            draggedElement = targetItem;
+            draggedElement.style.opacity = '0.5';
+            draggedElement.style.transform = 'rotate(2deg)';
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    });
+    
+    container.addEventListener('dragend', function(e) {
+        if (draggedElement) {
+            draggedElement.style.opacity = '';
+            draggedElement.style.transform = '';
+            draggedElement = null;
+        }
+    });
+    
+    container.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
+    
+    container.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+    });
+    
+    container.addEventListener('drop', function(e) {
+        e.preventDefault();
+        
+        if (!draggedElement) return;
+        
+        const targetElement = e.target.closest(type === 'group' ? '.group-item' : '.question-item');
+        if (targetElement && targetElement !== draggedElement) {
+            const rect = targetElement.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            
+            if (e.clientY < midpoint) {
+                targetElement.parentNode.insertBefore(draggedElement, targetElement);
+            } else {
+                targetElement.parentNode.insertBefore(draggedElement, targetElement.nextSibling);
+            }
+            
+            updateOrderAfterDrag(type);
+            
+            // Visual feedback
+            targetElement.style.backgroundColor = '#e8f5e8';
+            setTimeout(() => {
+                targetElement.style.backgroundColor = '';
+            }, 300);
+        }
+    });
+    
+    // Enable dragging cho tất cả items hiện tại và tương lai
+    enableDragging();
+    
+    // Observer để enable dragging cho items mới được thêm
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                enableDragging();
+            }
+        });
+    });
+    
+    observer.observe(container, { childList: true });
+}
+
+function updateOrderAfterDrag(type) {
+    if (type === 'group') {
+        // Update group order
+        const groupItems = document.querySelectorAll('.group-item');
+        groupItems.forEach((item, index) => {
+            const groupId = item.dataset.groupId;
+            const group = currentConfig.questionGroups.find(g => g.id === groupId);
+            if (group) {
+                group.order = index;
+            }
+        });
+    } else if (type === 'question') {
+        // Update question order within groups
+        document.querySelectorAll('.group-item').forEach(groupItem => {
+            const groupId = groupItem.dataset.groupId;
+            const group = currentConfig.questionGroups.find(g => g.id === groupId);
+            if (group) {
+                const questionItems = groupItem.querySelectorAll('.question-item');
+                questionItems.forEach((item, index) => {
+                    const questionId = item.dataset.questionId;
+                    const question = group.questions.find(q => q.id === questionId);
+                    if (question) {
+                        question.order = index;
+                    }
+                });
+                // Sắp xếp lại array theo order
+                group.questions.sort((a, b) => (a.order || 0) - (b.order || 0));
+            }
+        });
+    }
+    
+    // Sắp xếp lại groups theo order
+    currentConfig.questionGroups.sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    console.log('Updated config after drag:', currentConfig);
+}
+
+// Question Group Management
+function addQuestionGroup() {
+    currentEditingGroup = null;
+    document.getElementById('groupModalTitle').textContent = 'Thêm nhóm câu hỏi mới';
+    document.getElementById('groupTitleInput').value = '';
+    document.getElementById('groupIconInput').value = 'fas fa-layer-group';
+    document.getElementById('selectedGroupIcon').className = 'fas fa-layer-group';
+    
+    // Cập nhật dropdown trang
+    populatePageOptions();
+    document.getElementById('groupPageSelect').value = '1'; // Mặc định trang 1
+    
+    document.getElementById('groupModal').style.display = 'block';
+}
+
+function editGroup(button) {
+    const groupElement = button.closest('.group-item');
+    const groupId = groupElement.dataset.groupId;
+    const group = currentConfig.questionGroups.find(g => g.id === groupId);
+    
+    if (group) {
+        currentEditingGroup = group;
+        document.getElementById('groupModalTitle').textContent = 'Chỉnh sửa nhóm câu hỏi';
+        document.getElementById('groupTitleInput').value = group.title;
+        document.getElementById('groupIconInput').value = group.icon;
+        document.getElementById('selectedGroupIcon').className = group.icon;
+        
+        // Cập nhật dropdown trang và chọn trang hiện tại
+        populatePageOptions();
+        document.getElementById('groupPageSelect').value = group.page || 1;
+        
+        document.getElementById('groupModal').style.display = 'block';
+    }
+}
+
+function deleteGroup(button) {
+    if (confirm('Bạn có chắc chắn muốn xóa nhóm câu hỏi này?')) {
+        const groupElement = button.closest('.group-item');
+        const groupId = groupElement.dataset.groupId;
+        
+        currentConfig.questionGroups = currentConfig.questionGroups.filter(g => g.id !== groupId);
+        renderQuestionGroups();
+    }
+}
+
+
+// THÊM function này vào javascript.html
+function populatePageOptions() {
+    const select = document.getElementById('groupPageSelect');
+    
+    // Tìm số trang tối đa hiện có
+    let maxPage = 1;
+    if (currentConfig && currentConfig.questionGroups) {
+        currentConfig.questionGroups.forEach(group => {
+            if (group.page && group.page > maxPage) {
+                maxPage = group.page;
+            }
+        });
+    }
+    
+    // Clear existing options
+    select.innerHTML = '';
+    
+    // Tạo options từ 1 đến maxPage + 1
+    for (let i = 1; i <= maxPage + 1; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `Trang ${i}`;
+        select.appendChild(option);
+    }
+}
+
+function saveGroup() {
+    const title = document.getElementById('groupTitleInput').value.trim();
+    const icon = document.getElementById('groupIconInput').value.trim();
+    const page = parseInt(document.getElementById('groupPageSelect').value);
+    
+    if (!title) {
+        alert('Vui lòng nhập tiêu đề nhóm câu hỏi');
+        return;
+    }
+    
+    if (currentEditingGroup) {
+        // Edit existing group
+        currentEditingGroup.title = title;
+        currentEditingGroup.icon = icon;
+        currentEditingGroup.page = page;
+    } else {
+        // Add new group
+        const newGroup = {
+            id: 'group_' + Date.now(),
+            title: title,
+            icon: icon,
+            page: page,
+            order: currentConfig.questionGroups.length + 1,
+            questions: []
+        };
+        currentConfig.questionGroups.push(newGroup);
+    }
+    
+    renderQuestionGroups();
+    closeGroupModal();
+}
+
+function closeGroupModal() {
+    document.getElementById('groupModal').style.display = 'none';
+    currentEditingGroup = null;
+}
+
+// Question Management
+function addQuestion(button) {
+    const groupElement = button.closest('.group-item');
+    const groupId = groupElement.dataset.groupId;
+    const group = currentConfig.questionGroups.find(g => g.id === groupId);
+    
+    if (group) {
+        currentEditingQuestion = { groupId: groupId };
+        document.getElementById('questionModalTitle').textContent = 'Thêm câu hỏi mới';
+        resetQuestionModal();
+        document.getElementById('questionModal').style.display = 'block';
+    }
+}
+
+function editQuestion(button) {
+    const questionElement = button.closest('.question-item');
+    const questionId = questionElement.dataset.questionId;
+    const groupElement = button.closest('.group-item');
+    const groupId = groupElement.dataset.groupId;
+    const group = currentConfig.questionGroups.find(g => g.id === groupId);
+    const question = group.questions.find(q => q.id === questionId);
+    
+    if (question) {
+        currentEditingQuestion = { ...question, groupId: groupId };
+        document.getElementById('questionModalTitle').textContent = 'Chỉnh sửa câu hỏi';
+        loadQuestionToModal(question);
+        document.getElementById('questionModal').style.display = 'block';
+    }
+}
+
+function deleteQuestion(button) {
+    if (confirm('Bạn có chắc chắn muốn xóa câu hỏi này?')) {
+        const questionElement = button.closest('.question-item');
+        const questionId = questionElement.dataset.questionId;
+        const groupElement = button.closest('.group-item');
+        const groupId = groupElement.dataset.groupId;
+        const group = currentConfig.questionGroups.find(g => g.id === groupId);
+        
+        if (group) {
+            group.questions = group.questions.filter(q => q.id !== questionId);
+            renderQuestionGroups();
+        }
+    }
+}
+
+function resetQuestionModal() {
+    document.getElementById('questionTitleInput').value = '';
+    document.getElementById('questionIconInput').value = 'fas fa-question';
+    document.getElementById('selectedQuestionIcon').className = 'fas fa-question';
+    document.getElementById('questionTypeSelect').value = 'text';
+    document.getElementById('questionRequiredInput').checked = false;
+    document.getElementById('questionPlaceholderInput').value = '';
+    document.getElementById('questionOptionsInput').value = '';
+    
+    // Reset dropdown dependent
+    document.getElementById('dropdownDependentCheck').checked = false;
+    document.getElementById('dependentQuestionSelect').value = '';
+    document.getElementById('dependentOptionsContainer').style.display = 'none';
+    document.getElementById('parentValuesContainer').style.display = 'none';
+    document.getElementById('parentValuesList').innerHTML = '';
+    
+    updateQuestionTypeOptions();
+}
+
+function loadQuestionToModal(question) {
+    document.getElementById('questionTitleInput').value = question.title;
+    document.getElementById('questionIconInput').value = question.icon;
+    document.getElementById('selectedQuestionIcon').className = question.icon;
+    document.getElementById('questionTypeSelect').value = question.type;
+    document.getElementById('questionRequiredInput').checked = question.required;
+    document.getElementById('questionPlaceholderInput').value = question.placeholder || '';
+    
+    updateQuestionTypeOptions();
+    
+    // Load options as single string
+    if (question.options) {
+        const optionsString = question.options.map(opt => opt.label).join('; ');
+        document.getElementById('questionOptionsInput').value = optionsString;
+    }
+    
+    // Load dropdown dependent data
+    if (question.type === 'select') {
+        const isDependentDropdown = !!question.dependentOn;
+        document.getElementById('dropdownDependentCheck').checked = isDependentDropdown;
+        
+        if (isDependentDropdown) {
+            document.getElementById('dependentOptionsContainer').style.display = 'block';
+            document.getElementById('dependentQuestionSelect').value = question.dependentOn;
+            
+            // Load parent question values
+            setTimeout(() => {
+                loadParentQuestionValues();
+            }, 100);
+        }
+        
+        // Cập nhật hiển thị options section
+        updateOptionsVisibility();
+    }
+}
+
+// Function để cập nhật hiển thị phần options
+function updateOptionsVisibility() {
+    const isDependentChecked = document.getElementById('dropdownDependentCheck').checked;
+    const optionsSection = document.getElementById('questionOptionsSection');
+    
+    if (document.getElementById('questionTypeSelect').value === 'select') {
+        optionsSection.style.display = isDependentChecked ? 'none' : 'block';
+    }
+}
+
+function updateQuestionTypeOptions() {
+    const type = document.getElementById('questionTypeSelect').value;
+    const optionsSection = document.getElementById('questionOptionsSection');
+    const dropdownDependentSection = document.getElementById('dropdownDependentSection');
+    
+    if (['radio', 'checkbox'].includes(type)) {
+        optionsSection.style.display = 'block';
+        dropdownDependentSection.style.display = 'none';
+    } else if (type === 'select') {
+        dropdownDependentSection.style.display = 'block';
+        populateDependentQuestionList();
+        updateOptionsVisibility(); // Kiểm tra hiển thị options section
+    } else {
+        optionsSection.style.display = 'none';
+        dropdownDependentSection.style.display = 'none';
+    }
+}
+
+
+
+function addQuestionOption() {
+    addQuestionOptionElement('', '');
+}
+
+function addQuestionOptionElement(label, value) {
+    const container = document.getElementById('questionOptionsContainer');
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'option-row';
+    optionDiv.innerHTML = `
+        <input type="text" placeholder="Nhãn hiển thị" value="${label}" class="option-label">
+        <input type="text" placeholder="Giá trị" value="${value}" class="option-value">
+        <button type="button" onclick="removeQuestionOption(this)" class="btn-icon btn-danger">
+            <i class="fas fa-trash"></i>
+        </button>
+    `;
+    container.appendChild(optionDiv);
+}
+
+function removeQuestionOption(button) {
+    button.closest('.option-row').remove();
+}
+
+function saveQuestion() {
+    const title = document.getElementById('questionTitleInput').value.trim();
+    const icon = document.getElementById('questionIconInput').value.trim();
+    const type = document.getElementById('questionTypeSelect').value;
+    const required = document.getElementById('questionRequiredInput').checked;
+    const placeholder = document.getElementById('questionPlaceholderInput').value.trim();
+    
+    if (!title) {
+        alert('Vui lòng nhập tiêu đề câu hỏi');
+        return;
+    }
+    
+    const questionData = {
+        title: title,
+        icon: icon,
+        type: type,
+        required: required,
+        placeholder: placeholder
+    };
+    
+    // Handle dropdown dependent
+    if (type === 'select') {
+        const isDependentChecked = document.getElementById('dropdownDependentCheck').checked;
+        
+        if (isDependentChecked) {
+            const dependentQuestion = document.getElementById('dependentQuestionSelect').value;
+            
+            if (!dependentQuestion) {
+                alert('Vui lòng chọn câu hỏi phụ thuộc');
+                return;
+            }
+            
+            // Collect dependent options from input fields
+            const dependentOptions = {};
+            const inputs = document.querySelectorAll('.dependent-value-input');
+            let hasValues = false;
+            
+            inputs.forEach(input => {
+                const parentValue = input.dataset.parentValue;
+                const childValues = input.value.trim();
+                
+                if (childValues) {
+                    const children = childValues.split(';').map(v => v.trim()).filter(v => v);
+                    if (children.length > 0) {
+                        dependentOptions[parentValue] = children;
+                        hasValues = true;
+                    }
+                }
+            });
+            
+            if (!hasValues) {
+                alert('Vui lòng nhập ít nhất một giá trị phụ thuộc');
+                return;
+            }
+            
+            questionData.dependentOn = dependentQuestion;
+            questionData.dependentOptions = dependentOptions;
+        } else {
+            // Normal dropdown - get options
+            const optionsString = document.getElementById('questionOptionsInput').value.trim();
+            questionData.options = [];
+            
+            if (optionsString) {
+                const optionLabels = optionsString.split(';').map(opt => opt.trim()).filter(opt => opt);
+                questionData.options = optionLabels.map(label => ({
+                    label: label,
+                    value: label
+                }));
+            }
+            
+            if (questionData.options.length === 0) {
+                alert('Vui lòng nhập ít nhất một tùy chọn');
+                return;
+            }
+        }
+    } else if (['radio', 'checkbox'].includes(type)) {
+        // Radio/checkbox options
+        const optionsString = document.getElementById('questionOptionsInput').value.trim();
+        questionData.options = [];
+        
+        if (optionsString) {
+            const optionLabels = optionsString.split(';').map(opt => opt.trim()).filter(opt => opt);
+            questionData.options = optionLabels.map(label => ({
+                label: label,
+                value: label
+            }));
+        }
+        
+        if (questionData.options.length === 0) {
+            alert('Vui lòng nhập ít nhất một tùy chọn');
+            return;
+        }
+    }
+    
+    const group = currentConfig.questionGroups.find(g => g.id === currentEditingQuestion.groupId);
+    
+    if (!group) {
+        alert('Không tìm thấy nhóm câu hỏi');
+        return;
+    }
+    
+    if (currentEditingQuestion.id) {
+        // Edit existing question
+        const existingQuestion = group.questions.find(q => q.id === currentEditingQuestion.id);
+        if (existingQuestion) {
+            Object.assign(existingQuestion, questionData);
+        }
+    } else {
+        // Add new question
+        questionData.id = 'q_' + Date.now();
+        questionData.order = group.questions.length + 1;
+        group.questions.push(questionData);
+    }
+    
+    renderQuestionGroups();
+    closeQuestionModal();
+}
+
+function closeQuestionModal() {
+    document.getElementById('questionModal').style.display = 'none';
+    currentEditingQuestion = null;
+}
+
+// Configuration Management
+function saveConfiguration() {
+    if (!currentConfig) return;
+    
+    // Update general settings
+    currentConfig.surveyTitle = document.getElementById('surveyTitle').value;
+    currentConfig.logoUrl = document.getElementById('logoUrl').value;
+    currentConfig.backgroundUrl = document.getElementById('backgroundUrl').value;
+    currentConfig.primaryColor = document.getElementById('primaryColor').value;
+    currentConfig.secondaryColor = document.getElementById('secondaryColor').value;
+    currentConfig.textColor = document.getElementById('textColor').value;
+    currentConfig.sheetName = document.getElementById('sheetName').value;
+    currentConfig.imageFolder = document.getElementById('imageFolder').value;
+    currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
+    
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    google.script.run
+        .withSuccessHandler(function(result) {
+            if (result.success) {
+                // Sau khi lưu config thành công, cập nhật headers
+                google.script.run
+                    .withSuccessHandler(function(headerResult) {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        if (headerResult.success) {
+                            alert('Cấu hình và header đã được cập nhật thành công!');
+                            
+                            // **THÊM DÒNG NÀY: Reload form để hiển thị thay đổi**
+                            reloadFormPreview();
+                        } else {
+                            alert('Cấu hình đã lưu nhưng có lỗi cập nhật header: ' + headerResult.error);
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        alert('Cấu hình đã lưu nhưng lỗi cập nhật header: ' + error);
+                    })
+                    .updateSheetHeaders();
+            } else {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                alert('Lỗi: ' + result.error);
+            }
+        })
+        .withFailureHandler(function(error) {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            alert('Lỗi lưu cấu hình: ' + error);
+        })
+        .saveConfig(currentConfig);
+}
+
+function reloadFormPreview() {
+    // Mở form trong tab mới để xem thay đổi
+    const formUrl = ScriptApp.getService().getUrl();
+    window.open(formUrl, '_blank');
+}
+
+function previewSurvey() {
+    // Update config with current form values
+    saveConfigToMemory();
+    
+    // Hide admin interface and show survey
+    document.getElementById('adminInterface').style.display = 'none';
+    document.getElementById('surveyInterface').style.display = 'block';
+    
+    // Regenerate survey interface
+    generateSurveyInterface(currentConfig);
+    
+    // Add preview overlay
+    const previewOverlay = document.createElement('div');
+    previewOverlay.id = 'previewOverlay';
+    previewOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1001;
+        font-weight: bold;
+    `;
+    previewOverlay.innerHTML = `
+        <span style="margin-right: 20px;">CHẾ ĐỘ XEM TRƯỚC</span>
+        <button onclick="exitPreview()" style="background: #d82c27; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+            Thoát xem trước
+        </button>
+    `;
+    
+    document.body.appendChild(previewOverlay);
+}
+
+function exitPreview() {
+    const previewOverlay = document.getElementById('previewOverlay');
+    if (previewOverlay) {
+        previewOverlay.remove();
+    }
+    
+    document.getElementById('surveyInterface').style.display = 'none';
+    document.getElementById('adminInterface').style.display = 'block';
+}
+
+function saveConfigToMemory() {
+    if (!currentConfig) return;
+    
+    currentConfig.surveyTitle = document.getElementById('surveyTitle').value;
+    currentConfig.logoUrl = document.getElementById('logoUrl').value;
+    currentConfig.backgroundUrl = document.getElementById('backgroundUrl').value;
+    currentConfig.primaryColor = document.getElementById('primaryColor').value;
+    currentConfig.secondaryColor = document.getElementById('secondaryColor').value;
+    currentConfig.textColor = document.getElementById('textColor').value;
+    currentConfig.sheetName = document.getElementById('sheetName').value;
+    currentConfig.imageFolder = document.getElementById('imageFolder').value;
+    currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
+    
+    // Update wave colors immediately when saving to memory
+    updateWaveColors(currentConfig.primaryColor);
+}
+
+// Form submission handling
+function handleFormSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    
+    if (!form.checkValidity()) {
+        form.classList.add('shake');
+        setTimeout(() => form.classList.remove('shake'), 500);
+        form.reportValidity();
+        return;
+    }
+    
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    const formData = collectFormData(form);
+    
+    // Handle images if any
+    const validImages = capturedImages.filter(img => img !== null);
+    
+    if (validImages.length > 0) {
+        const imagesJson = JSON.stringify(validImages);
+        
+        google.script.run
+            .withSuccessHandler(function(results) {
+                const imageIds = results.map(result => result.fileId).filter(id => id);
+                formData.imageIds = imageIds;
+                saveFormData(formData);
+            })
+            .withFailureHandler(function(error) {
+                console.error('Error uploading images:', error);
+                alert('Lỗi khi tải ảnh lên: ' + error);
+                document.getElementById('loadingOverlay').style.display = 'none';
+            })
+            .uploadImages(imagesJson, formData.customerName || 'unknown', 'pending');
+    } else {
+        saveFormData(formData);
+    }
+}
+
+function collectFormData(form) {
+    const formData = {};
+    
+    currentConfig.questionGroups.forEach(group => {
+        group.questions.forEach(question => {
+            const element = form.querySelector(`[name="${question.id}"]`);
+            
+            if (element) {
+                if (question.type === 'checkbox') {
+                    const checked = form.querySelectorAll(`[name="${question.id}"]:checked`);
+                    formData[question.id] = Array.from(checked).map(cb => cb.value).join(', ');
+                } else if (question.type === 'radio' || question.type === 'rating') {
+                    const checked = form.querySelector(`[name="${question.id}"]:checked`);
+                    formData[question.id] = checked ? checked.value : '';
+                } else {
+                    formData[question.id] = element.value || '';
+                }
+            }
+        });
+    });
+    
+    return formData;
+}
+
+function saveFormData(formData) {
+    google.script.run
+        .withSuccessHandler(function(result) {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            
+            if (result.success) {
+                document.getElementById('successMessage').style.display = 'flex';
+            } else {
+                alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu.'));
+            }
+        })
+        .withFailureHandler(function(error) {
+            console.error('Error saving form data:', error);
+            alert('Lỗi lưu dữ liệu: ' + error);
+            document.getElementById('loadingOverlay').style.display = 'none';
+        })
+        .saveFormData(formData);
+}
+
+// Image handling functions
+function handleImageUploadClick(button) {
+    const uploadContainer = button.closest('.image-upload-container');
+    const imageInput = uploadContainer.querySelector('.image-input');
+    imageInput.click();
+}
+
+function handleImageSelect(event) {
+    const files = event.target.files;
+    if (files.length === 0) return;
+    
+    const uploadContainer = event.target.closest('.image-upload-container');
+    const previewContainer = uploadContainer.querySelector('.image-preview-container');
+    
+    Array.from(files).forEach(file => {
+        if (!file.type.match('image.*')) {
+            alert('Vui lòng chọn ảnh');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imgData = e.target.result;
+            compressImage(imgData, file.type, function(compressedImage) {
+                capturedImages.push({
+                    data: compressedImage.split(',')[1],
+                    contentType: file.type,
+                    originalName: file.name  // Thêm dòng này
+                });
+                addImagePreview(compressedImage, previewContainer);
+            });
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Image compression functions (same as original)
+function compressImage(imgDataUrl, fileType, callback) {
+    const img = new Image();
+    
+    img.onload = function() {
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        let width = img.width;
+        let height = img.height;
+        
+        let quality = 0.7;
+        let maxWidth = 1200;
+        
+        if (width > maxWidth) {
+            height = Math.round(height * maxWidth / width);
+            width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        let compressedSize = getDataUrlSize(compressedDataUrl);
+        
+        if (compressedSize > MAX_IMAGE_SIZE) {
+            compressImageToMaxSize(img, MAX_IMAGE_SIZE, callback);
+        } else {
+            callback(compressedDataUrl);
+        }
+    };
+    
+    img.src = imgDataUrl;
+}
+
+// Reset colors to default values
+function resetColors() {
+    const defaultColors = {
+        primaryColor: '#d82c27',
+        secondaryColor: '#f8f8f8',
+        textColor: '#333333'
+    };
+    
+    // Set form values
+    document.getElementById('primaryColor').value = defaultColors.primaryColor;
+    document.getElementById('secondaryColor').value = defaultColors.secondaryColor;
+    document.getElementById('textColor').value = defaultColors.textColor;
+    
+    // Update current config if exists
+    if (currentConfig) {
+        currentConfig.primaryColor = defaultColors.primaryColor;
+        currentConfig.secondaryColor = defaultColors.secondaryColor;
+        currentConfig.textColor = defaultColors.textColor;
+    }
+    
+    // Update wave colors immediately
+    updateWaveColors(defaultColors.primaryColor);
+    
+    // Show feedback
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i> Đã reset!';
+    button.style.background = 'linear-gradient(135deg, #28a745, #218838)';
+    
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.style.background = '';
+    }, 1500);
+}
+
+function compressImageToMaxSize(img, maxSize, callback) {
+    let canvas = document.createElement('canvas');
+    let ctx = canvas.getContext('2d');
+    
+    let width = img.width;
+    let height = img.height;
+    let quality = 0.7;
+    let maxWidth = 800;
+    
+    if (width > maxWidth) {
+        height = Math.round(height * maxWidth / width);
+        width = maxWidth;
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+    
+    function compress(q) {
+        const dataUrl = canvas.toDataURL('image/jpeg', q);
+        const size = getDataUrlSize(dataUrl);
+        
+        if (size <= maxSize || q < 0.1) {
+            callback(dataUrl);
+        } else {
+            compress(q - 0.1);
+        }
+    }
+    
+    compress(quality);
+}
+
+function getDataUrlSize(dataUrl) {
+    const base64 = dataUrl.split(',')[1];
+    return (base64.length * 3) / 4;
+}
+
+function addImagePreview(imgData, previewContainer) {
+    const index = capturedImages.length - 1;
+    
+    const previewDiv = document.createElement('div');
+    previewDiv.className = 'image-preview';
+    previewDiv.dataset.index = index;
+    
+    const img = document.createElement('img');
+    img.src = imgData;
+    img.className = 'preview-img';
+    
+    const removeBtn = document.createElement('span');
+    removeBtn.className = 'remove-btn';
+    removeBtn.innerHTML = '×';
+    removeBtn.addEventListener('click', function() {
+        previewDiv.remove();
+        capturedImages[index] = null;
+    });
+    
+    previewDiv.appendChild(img);
+    previewDiv.appendChild(removeBtn);
+    previewContainer.appendChild(previewDiv);
+    
+    previewDiv.style.opacity = '0';
+    previewDiv.style.transform = 'scale(0.8)';
+    previewDiv.style.transition = 'all 0.3s ease';
+    
+    setTimeout(() => {
+        previewDiv.style.opacity = '1';
+        previewDiv.style.transform = 'scale(1)';
+    }, 50);
+}
+
+// Reset form
+document.addEventListener('click', function(e) {
+    if (e.target.id === 'newFeedbackBtn') {
+        // Reset form thông thường
+        document.getElementById('dynamicSurveyForm').reset();
+        
+        // Reset dropdown về option đầu tiên
+        document.querySelectorAll('select').forEach(select => {
+            select.selectedIndex = 0;
+            
+            // Nếu là dependent dropdown thì disable lại
+            if (select.classList.contains('dependent-dropdown')) {
+                select.disabled = true;
+                // Xóa các option trừ option đầu tiên
+                while (select.children.length > 1) {
+                    select.removeChild(select.lastChild);
+                }
+            }
+        });
+        
+        // Reset images
+        capturedImages = [];
+        document.querySelectorAll('.image-preview-container').forEach(container => {
+            container.innerHTML = '';
+        });
+        
+        // THÊM: Reset về trang đầu tiên
+        if (window.surveyPagesArray && window.surveyPagesArray.length > 0) {
+            // Ẩn trang hiện tại
+            if (window.currentSurveyPage) {
+                const currentPageDiv = document.getElementById(`page-${window.currentSurveyPage}`);
+                if (currentPageDiv) currentPageDiv.style.display = 'none';
+            }
+            
+            // Chuyển về trang đầu
+            window.currentSurveyPage = window.surveyPagesArray[0];
+            const firstPageDiv = document.getElementById(`page-${window.currentSurveyPage}`);
+            if (firstPageDiv) firstPageDiv.style.display = 'block';
+            
+            // Cập nhật navigation
+            updateNavigationButtons();
+            updatePageIndicator();
+        }
+        
+        // Hide success message
+        document.getElementById('successMessage').style.display = 'none';
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+});
+
+// Close modals when clicking outside
+window.addEventListener('click', function(e) {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+});
+</script>
