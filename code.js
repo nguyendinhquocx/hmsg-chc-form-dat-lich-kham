@@ -425,6 +425,9 @@ function uploadImages(imageBlobsJson, customerName, uniqueId) {
 // Check appointment availability
 function checkAppointmentAvailability(selectedDate, selectedSession) {
   try {
+    console.log('=== DEBUG checkAppointmentAvailability ===');
+    console.log('Input - selectedDate:', selectedDate, 'selectedSession:', selectedSession);
+    
     const config = getConfig();
     
     // Kiểm tra nếu appointment limits không được bật
@@ -445,23 +448,29 @@ function checkAppointmentAvailability(selectedDate, selectedSession) {
       };
     }
     
-    // Đếm số lượng đăng ký hiện tại cho ngày và buổi đã chọn
-    const count = getAppointmentCount(selectedDate, selectedSession);
-    const limit = selectedSession === 'morning' ? limits.morningLimit : limits.afternoonLimit;
+    // Chuẩn hóa session value trước khi xử lý
+    const normalizedSession = normalizeSessionValue(selectedSession);
+    console.log('Normalized session:', normalizedSession);
     
-    console.log(`Checking availability: Date=${selectedDate}, Session=${selectedSession}, Count=${count}, Limit=${limit}`);
+    // Đếm số lượng đăng ký hiện tại cho ngày và buổi đã chọn
+    const count = getAppointmentCount(selectedDate, normalizedSession);
+    const limit = normalizedSession === 'morning' ? limits.morningLimit : limits.afternoonLimit;
+    
+    console.log(`Checking availability: Date=${selectedDate}, NormalizedSession=${normalizedSession}, Count=${count}, Limit=${limit}`);
     
     if (count >= limit) {
       console.log('Appointment not available - limit exceeded');
-      const sessionText = selectedSession === 'morning' ? 'sáng' : 'chiều';
+      const sessionText = normalizedSession === 'morning' ? 'sáng' : 'chiều';
+      const message = `Buổi ${sessionText} ngày ${formatDate(selected)} đã đủ ${limit} người. Vui lòng chọn ngày hoặc buổi khác.`;
+      console.log('Generated error message:', message);
       return {
         available: false,
-        message: `Buổi ${sessionText} ngày ${formatDate(selected)} đã đủ ${limit} người. Vui lòng chọn ngày hoặc buổi khác.`
+        message: message
       };
     }
     
     console.log('Appointment available');
-    const sessionText = selectedSession === 'morning' ? 'sáng' : 'chiều';
+    const sessionText = normalizedSession === 'morning' ? 'sáng' : 'chiều';
     return {
       available: true,
       message: `Còn ${limit - count} chỗ cho buổi ${sessionText} ngày ${formatDate(selected)}`
@@ -840,6 +849,71 @@ function debugSpecificIssue() {
     afternoonAvailability: afternoonAvailability,
     config: config.appointmentLimits
   };
+}
+
+function debugNormalizeSessionValues() {
+  console.log('=== DEBUG NORMALIZE SESSION VALUES ===');
+  
+  // Test các giá trị thông thường
+  const testValues = ['Sáng', 'Chiều', 'sáng', 'chiều', 'morning', 'afternoon', 'SÁNG', 'CHIỀU'];
+  
+  testValues.forEach(value => {
+    const normalized = normalizeSessionValue(value);
+    console.log(`Input: "${value}" -> Normalized: "${normalized}"`);
+  });
+  
+  // Test trường hợp cụ thể của người dùng
+  console.log('\n=== SPECIFIC USER CASE ===');
+  const userInput = 'Sáng';
+  const normalized = normalizeSessionValue(userInput);
+  console.log(`User selected: "${userInput}"`);
+  console.log(`Normalized result: "${normalized}"`);
+  console.log(`Is morning?: ${normalized === 'morning'}`);
+  console.log(`Is afternoon?: ${normalized === 'afternoon'}`);
+  
+  return {
+    userInput: userInput,
+    normalized: normalized,
+    isMorning: normalized === 'morning',
+    isAfternoon: normalized === 'afternoon'
+  };
+}
+
+function debugFullAppointmentFlow() {
+  console.log('=== DEBUG FULL APPOINTMENT FLOW ===');
+  
+  // Simulate user input
+  const testDate = '2025-07-26';
+  const testSession = 'Sáng';
+  
+  console.log('1. User Input:');
+  console.log(`   Date: ${testDate}`);
+  console.log(`   Session: ${testSession}`);
+  
+  console.log('\n2. Session Normalization:');
+  const normalized = normalizeSessionValue(testSession);
+  console.log(`   Original: "${testSession}"`);
+  console.log(`   Normalized: "${normalized}"`);
+  
+  console.log('\n3. Session Text Generation:');
+  const sessionText = normalized === 'morning' ? 'sáng' : 'chiều';
+  console.log(`   Logic: ${normalized} === 'morning' ? 'sáng' : 'chiều'`);
+  console.log(`   Result: "${sessionText}"`);
+  
+  console.log('\n4. Full Availability Check:');
+  const result = checkAppointmentAvailability(testDate, testSession);
+  console.log('   Result:', result);
+  
+  console.log('\n5. Message Analysis:');
+  if (result.message) {
+    const containsSang = result.message.includes('sáng');
+    const containsChieu = result.message.includes('chiều');
+    console.log(`   Contains 'sáng': ${containsSang}`);
+    console.log(`   Contains 'chiều': ${containsChieu}`);
+    console.log(`   Full message: "${result.message}"`);
+  }
+  
+  return result;
 }
 
 // Debug function to check sheet structure

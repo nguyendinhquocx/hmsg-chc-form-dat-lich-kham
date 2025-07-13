@@ -1,52 +1,57 @@
-# Hệ Thống Khảo Sát Khách Hàng
+# HMSG CHC - Hệ Thống Đặt Lịch Khám
 
-Ứng dụng web khảo sát khách hàng được xây dựng hoàn toàn bằng Google Apps Script với giao diện hiện đại và tính năng quản lý linh hoạt.
+Ứng dụng web đặt lịch khám bệnh được xây dựng bằng Google Apps Script với giao diện tối giản và hệ thống quản lý lịch khám thông minh.
 
 ## Tính năng chính
 
-- **Giao diện khảo sát động**: Form khảo sát có thể tùy chỉnh hoàn toàn
-- **Admin panel**: Quản lý cấu hình, câu hỏi, nhóm câu hỏi
-- **Lưu trữ Google Sheets**: Dữ liệu được lưu tự động vào Google Sheets
+- **Đặt lịch khám**: Form đặt lịch với kiểm tra giới hạn số lượng
+- **Quản lý buổi khám**: Hỗ trợ buổi sáng và chiều
+- **Kiểm tra tự động**: Validation ngày khám và số lượng đăng ký
+- **Lưu trữ Google Sheets**: Dữ liệu được lưu tự động và có thể xuất Excel
 - **Responsive design**: Tối ưu cho cả desktop và mobile
-- **Bảo mật**: Hệ thống đăng nhập admin với mật khẩu
-- **Drag & drop**: Sắp xếp câu hỏi bằng kéo thả
-- **Tùy chỉnh màu sắc**: Thay đổi theme theo brand
+- **Debug tools**: Công cụ debug tích hợp để troubleshooting
+- **Giao diện tối giản**: Thiết kế clean, chỉ sử dụng màu trắng đen
 
 ## Cấu trúc dự án
 
 ```
-├── code.js           # Backend logic (Google Apps Script)
-├── index.html        # Giao diện chính
-├── stylesheet.html   # CSS styling
-├── javascript.html   # Frontend JavaScript
-├── appsscript.json   # Cấu hình dự án
-└── .clasp.json       # Cấu hình CLASP CLI
+├── code.js             # Backend logic và API endpoints
+├── index.html          # Giao diện form đặt lịch
+├── stylesheet.html     # CSS styling tối giản
+├── javascript.html     # Frontend JavaScript
+├── debug_console.html  # Console debug cho troubleshooting
+├── debug_test.html     # Test utilities
+├── DEBUG_GUIDE.md      # Hướng dẫn debug
+├── appsscript.json     # Cấu hình Google Apps Script
+└── .clasp.json         # Cấu hình CLASP CLI
 ```
 
 ## Công nghệ sử dụng
 
 - **Google Apps Script** - Backend và hosting
-- **Google Sheets API** - Database lưu trữ
-- **HTML/CSS/JavaScript** - Frontend
-- **Font Awesome** - Icon system
-- **Google Fonts (Roboto)** - Typography
+- **Google Sheets API** - Database lưu trữ lịch khám
+- **HTML/CSS/JavaScript** - Frontend với thiết kế tối giản
+- **System fonts** - Typography clean, không phụ thuộc external fonts
+- **Vanilla JavaScript** - Không dependencies, tối ưu performance
 
 ## Cài đặt và triển khai
 
 ### Yêu cầu
 - Tài khoản Google
 - Google Apps Script project
-- Google Sheets để lưu dữ liệu
+- Google Sheets để lưu dữ liệu lịch khám
 
 ### Bước 1: Tạo Google Apps Script project
 1. Truy cập [script.google.com](https://script.google.com)
 2. Tạo project mới
 3. Copy toàn bộ code từ các file vào project
 
-### Bước 2: Cấu hình
-1. Tạo Google Sheets mới để lưu dữ liệu
-2. Cập nhật spreadsheet ID trong code
-3. Thiết lập mật khẩu admin trong sheet "Cấu hình"
+### Bước 2: Cấu hình Google Sheets
+1. Tạo Google Sheets mới với các sheet:
+   - **Ngày khám**: Lưu dữ liệu đăng ký
+   - **Cấu hình**: Thiết lập giới hạn và thông số
+2. Cập nhật `SPREADSHEET_ID` trong code.js
+3. Cấu hình giới hạn số lượng cho buổi sáng/chiều
 
 ### Bước 3: Deploy
 1. Trong Apps Script: Deploy > New deployment
@@ -57,61 +62,68 @@
 
 ## Sử dụng
 
-### Cho người dùng cuối
+### Cho bệnh nhân
 1. Truy cập URL của web app
-2. Điền thông tin khảo sát
-3. Submit để gửi dữ liệu
+2. Điền thông tin:
+   - Họ tên
+   - Số điện thoại
+   - Ngày khám mong muốn
+   - Buổi khám (Sáng/Chiều)
+3. Submit để đăng ký lịch khám
 
-### Cho admin
-1. Click nút cài đặt ở góc phải
-2. Nhập mật khẩu admin
-3. Cấu hình khảo sát:
-   - Thay đổi tiêu đề, màu sắc
-   - Thêm/sửa/xóa nhóm câu hỏi
-   - Sắp xếp thứ tự câu hỏi
-4. Lưu cấu hình
+### Cho admin/nhân viên y tế
+1. Sử dụng debug console để kiểm tra hệ thống
+2. Xem dữ liệu đăng ký trong Google Sheets
+3. Cấu hình giới hạn số lượng trong sheet "Cấu hình"
+4. Xuất dữ liệu để báo cáo
 
 ## Cấu hình nâng cao
 
-### Loại câu hỏi hỗ trợ
-- Text input
-- Textarea
-- Select dropdown
-- Radio buttons
-- Checkboxes
-- File upload
-- Date picker
-- Number input
+### Giới hạn lịch khám
+- **Buổi sáng**: Số lượng tối đa cho buổi sáng
+- **Buổi chiều**: Số lượng tối đa cho buổi chiều
+- **Khoảng thời gian**: Ngày bắt đầu và kết thúc cho phép đăng ký
+- **Validation**: Tự động kiểm tra và từ chối khi đã đủ số lượng
 
-### Tùy chỉnh giao diện
-- Primary color: Màu chính của theme
-- Secondary color: Màu phụ
-- Text color: Màu chữ
-- Background URL: Hình nền tùy chỉnh
-- Logo URL: Logo của tổ chức
+### Debug và troubleshooting
+- **debug_console.html**: Giao diện debug với các công cụ kiểm tra
+- **Debug functions**: Kiểm tra normalization, appointment flow, sheet structure
+- **Console logs**: Chi tiết quá trình xử lý để tìm lỗi
 
 ### Quản lý dữ liệu
-- Dữ liệu được lưu trong Google Sheets
-- Tự động tạo header theo cấu hình
-- Timestamp cho mỗi response
-- Unique ID cho mỗi submission
+- Dữ liệu được lưu trong Google Sheets với timestamp
+- Tự động chuẩn hóa giá trị buổi khám (Sáng → morning, Chiều → afternoon)
+- Validation đầy đủ trước khi lưu
+- Hỗ trợ xuất Excel cho báo cáo
 
 ## Bảo mật
 
-- Mật khẩu admin được lưu trong Google Sheets
-- Input validation cho tất cả form fields
-- HTTPS encryption thông qua Google Apps Script
-- Access control cho admin functions
+- Validation dữ liệu đầu vào nghiêm ngặt
+- Sanitization để tránh XSS attacks
+- Rate limiting để tránh spam đăng ký
+- HTTPS bắt buộc cho production
+- Không lưu trữ thông tin nhạy cảm
 
 ## Hỗ trợ
 
-Nếu gặp vấn đề:
-1. Kiểm tra console log trong browser
-2. Xem execution log trong Apps Script
-3. Đảm bảo permissions được cấp đầy đủ
-4. Kiểm tra cấu hình Google Sheets
+Nếu gặp vấn đề, vui lòng:
+1. Sử dụng debug console để kiểm tra
+2. Xem Apps Script execution log
+3. Kiểm tra DEBUG_GUIDE.md cho troubleshooting
+4. Liên hệ admin để được hỗ trợ
 
 ## Phát triển
+
+### Mở rộng tính năng
+1. **Thêm validation mới**: Cập nhật `validateAppointmentData()` trong code.js
+2. **Tùy chỉnh UI**: Sửa stylesheet.html với thiết kế tối giản
+3. **Debug tools**: Sử dụng debug_console.html để test
+
+### Best practices
+- Giữ thiết kế tối giản, tập trung vào chức năng
+- Test kỹ trên mobile devices
+- Sử dụng vanilla JavaScript để tối ưu performance
+- Tuân thủ accessibility guidelines
 
 ### Local development với CLASP
 ```bash
@@ -131,4 +143,4 @@ clasp push
 
 ## License
 
-MIT License - Sử dụng tự do cho mục đích cá nhân và thương mại.
+MIT License - Dự án mã nguồn mở cho cộng đồng y tế.
