@@ -21,8 +21,8 @@
 }
 
 body {
-    font-family: 'Roboto', sans-serif;
-    background-color: #f5f5f5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: #ffffff;
     color: var(--text-color);
     line-height: 1.6;
     position: relative;
@@ -552,8 +552,8 @@ input[type="color"]:focus {
     justify-content: flex-end;
 }
 
-/* Survey Interface Styles (same as original but dynamic) */
-.animated-background {
+/* Survey Interface Styles - Đã xóa bỏ nền chuyển động */
+.static-background {
     position: fixed;
     top: 0;
     left: 0;
@@ -562,46 +562,10 @@ input[type="color"]:focus {
     z-index: -1;
     overflow: hidden;
     pointer-events: none;
+    background-color: #ffffff; /* Màu nền tĩnh thay thế */
 }
 
-.wave {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background-size: 100% 100%;
-    animation: wave-animation 25s linear infinite;
-}
-
-.wave1 {
-    opacity: 0.6;
-    bottom: 0;
-    animation: wave-animation 20s linear infinite;
-    /* Background sẽ được set bởi JavaScript */
-}
-
-.wave2 {
-    opacity: 0.35;
-    bottom: 10px;
-    animation: wave-animation-reverse 25s linear infinite;
-    /* Background sẽ được set bởi JavaScript */
-}
-
-.wave3 {
-    opacity: 0.22;
-    bottom: 20px;
-    animation: wave-animation 30s linear infinite;
-    /* Background sẽ được set bởi JavaScript */
-}
-
-@keyframes wave-animation {
-    0% { background-position-x: 0; }
-    100% { background-position-x: 1200px; }
-}
-
-@keyframes wave-animation-reverse {
-    0% { background-position-x: 1200px; }
-    100% { background-position-x: 0; }
-}
+/* Đã xóa bỏ tất cả CSS liên quan đến wave animation */
 
 /* Container */
 .container {
@@ -641,6 +605,7 @@ input[type="color"]:focus {
 /* Card */
 .card {
     background-color: #fff;
+    border: 1px solid #bfcad3;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     overflow: hidden;
@@ -909,6 +874,11 @@ input[type="color"]:focus {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
 }
 
 .overlay p {
@@ -1771,23 +1741,14 @@ css/* Icon Picker Styles - Compact & Higher Position */
 
 .main-loading-content {
     text-align: center;
-    color: var(--primary-color); /* Đổi text color thành primary color */
+    color: #666;
 }
 
-.loading-logo {
-    font-size: 4rem;
-    margin-bottom: 20px;
-    animation: pulse 2s infinite;
-    color: var(--primary-color); /* Đổi icon color thành primary color */
-}
-
-.loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid rgba(216, 44, 39, 0.2); /* Đổi thành primary color với opacity */
-    border-top: 4px solid var(--primary-color); /* Đổi thành primary color */
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 20px auto;
+.loading-dots {
+    font-size: 2rem;
+    font-weight: 300;
+    color: #666;
+    animation: pulse 1.5s ease-in-out infinite;
+    letter-spacing: 0.2em;
 }
 </style>

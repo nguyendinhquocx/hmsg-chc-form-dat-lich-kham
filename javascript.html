@@ -308,21 +308,15 @@ function generateSurveyInterface(config) {
     
     const surveyContent = document.getElementById('surveyContent');
     
-    // Background
+    // Background - Xóa bỏ nền chuyển động
     const backgroundDiv = document.createElement('div');
-    backgroundDiv.className = 'animated-background';
+    backgroundDiv.className = 'static-background';
     if (config.backgroundUrl) {
         backgroundDiv.style.backgroundImage = `url(${config.backgroundUrl})`;
         backgroundDiv.style.backgroundSize = 'cover';
         backgroundDiv.style.backgroundPosition = 'center';
-    } else {
-        // Default waves
-        backgroundDiv.innerHTML = `
-            <div class="wave wave1"></div>
-            <div class="wave wave2"></div>
-            <div class="wave wave3"></div>
-        `;
     }
+    // Đã xóa bỏ wave animation
     
     // Main container
     const container = document.createElement('div');
@@ -466,10 +460,7 @@ function generateSurveyInterface(config) {
     card.appendChild(cardBody);
     container.appendChild(card);
 
-    // Set wave colors after DOM is updated
-    setTimeout(() => {
-        updateWaveColors(config.primaryColor);
-    }, 100);
+    // Đã xóa bỏ việc cập nhật màu wave vì không còn wave animation
     
     // Clear and set new content
     surveyContent.innerHTML = '';
@@ -808,24 +799,10 @@ function applyTheme(config) {
     root.style.setProperty('--primary-dark', adjustBrightness(config.primaryColor, -20));
     root.style.setProperty('--primary-light', adjustBrightness(config.primaryColor, 20));
     
-    // Update wave background color
-    updateWaveColors(config.primaryColor);
+    // Đã xóa bỏ việc cập nhật màu wave
 }
 
-// New function to update wave colors dynamically
-function updateWaveColors(primaryColor) {
-    // Convert hex to URL-encoded format for SVG
-    const encodedColor = encodeURIComponent(primaryColor);
-    
-    // Create SVG path with dynamic color
-    const svgPath = `data:image/svg+xml;utf8,<svg viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".05" fill="${encodedColor}"/></svg>`;
-    
-    // Update all wave elements
-    const waves = document.querySelectorAll('.wave1, .wave2, .wave3');
-    waves.forEach(wave => {
-        wave.style.backgroundImage = `url('${svgPath}')`;
-    });
-}
+// Đã xóa bỏ hàm updateWaveColors vì không còn wave animation
 
 // Adjust color brightness
 function adjustBrightness(color, percent) {
@@ -911,8 +888,7 @@ function loadAdminConfiguration() {
     // Add event listener for primary color changes (real-time update)
     document.getElementById('primaryColor').addEventListener('input', function(e) {
         if (isAdminMode) {
-            // Update wave colors in real-time while in admin mode
-            updateWaveColors(e.target.value);
+            // Đã xóa bỏ việc cập nhật màu wave vì không còn wave animation
         }
     });
     
@@ -1637,8 +1613,7 @@ function saveConfigToMemory() {
     currentConfig.imageFolder = document.getElementById('imageFolder').value;
     currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
     
-    // Update wave colors immediately when saving to memory
-    updateWaveColors(currentConfig.primaryColor);
+    // Đã xóa bỏ việc cập nhật màu wave
 }
 
 // Form submission handling
@@ -1814,8 +1789,7 @@ function resetColors() {
         currentConfig.textColor = defaultColors.textColor;
     }
     
-    // Update wave colors immediately
-    updateWaveColors(defaultColors.primaryColor);
+    // Đã xóa bỏ việc cập nhật màu wave
     
     // Show feedback
     const button = event.target.closest('button');
