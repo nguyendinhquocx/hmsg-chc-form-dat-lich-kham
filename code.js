@@ -91,7 +91,8 @@ function createDefaultConfig() {
       startDate: "2025-07-26",
       endDate: "2025-08-10",
       morningLimit: 10,
-      afternoonLimit: 15
+      afternoonLimit: 15,
+      allowSunday: false  // Cho phép đặt lịch vào chủ nhật
     },
     questionGroups: [
       {
@@ -618,6 +619,18 @@ function validateAndSaveFormData(formData) {
     });
     
     console.log('Final values - selectedDate:', selectedDate, 'selectedSession:', selectedSession);
+    
+    // Kiểm tra chủ nhật nếu không được phép
+    if (selectedDate && config.appointmentLimits && !config.appointmentLimits.allowSunday) {
+      const dateObj = new Date(selectedDate);
+      if (dateObj.getDay() === 0) { // 0 = Chủ nhật
+        console.log('Sunday not allowed, returning error');
+        return {
+          success: false,
+          error: 'Chủ nhật không được phép đặt lịch khám. Vui lòng chọn ngày khác.'
+        };
+      }
+    }
     
     // Nếu có cấu hình appointment limits và tìm thấy thông tin ngày/buổi khám
     if (selectedDate && selectedSession) {

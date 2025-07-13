@@ -937,6 +937,7 @@ function loadAdminConfiguration() {
     document.getElementById('appointmentEndDate').value = appointmentLimits.endDate || '';
     document.getElementById('morningLimit').value = appointmentLimits.morningLimit || 10;
     document.getElementById('afternoonLimit').value = appointmentLimits.afternoonLimit || 15;
+    document.getElementById('allowSunday').checked = appointmentLimits.allowSunday || false;
     
     // Show/hide appointment limits config based on checkbox
     toggleAppointmentLimitsConfig();
@@ -1733,7 +1734,8 @@ function saveConfigToMemory() {
         startDate: document.getElementById('appointmentStartDate').value,
         endDate: document.getElementById('appointmentEndDate').value,
         morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
-        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15
+        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15,
+        allowSunday: document.getElementById('allowSunday').checked
     };
     
     // Đã xóa bỏ việc cập nhật màu wave
@@ -2121,6 +2123,18 @@ function checkAppointmentAvailability() {
     console.log('Selected date:', selectedDate);
     console.log('Selected session:', selectedSession);
     console.log('Session field element:', sessionField);
+    
+    // Check if Sunday is allowed
+    if (currentConfig && currentConfig.appointmentLimits && currentConfig.appointmentLimits.allowSunday === false) {
+        const dateObj = new Date(selectedDate);
+        if (dateObj.getDay() === 0) { // Sunday is 0
+            showAppointmentUnavailableMessage('Không thể đặt lịch vào Chủ nhật. Vui lòng chọn ngày khác.', selectedDate, selectedSession);
+            // Clear the selection
+            dateField.value = '';
+            sessionField.checked = false;
+            return;
+        }
+    }
     
     // Show loading indicator
     showAppointmentCheckingStatus('Đang kiểm tra tình trạng lịch hẹn...');
