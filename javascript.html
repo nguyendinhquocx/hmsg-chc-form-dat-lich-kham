@@ -759,6 +759,15 @@ function generateQuestionElement(question) {
             `;
             break;
             
+        case 'divider':
+            // Tạo divider - chỉ là đường kẻ ngang, không có input
+            const divider = document.createElement('hr');
+            divider.className = 'question-divider';
+            divider.style.cssText = 'margin: 10px 0 20px 0; border: none; border-top: 1px solid #ddd; background: transparent; height: 0; width: 60%;';
+            
+            // Trả về divider trực tiếp thay vì formGroup
+            return divider;
+            
         default:
             inputElement = document.createElement('input');
             inputElement.type = 'text';
@@ -1365,17 +1374,31 @@ function updateQuestionTypeOptions() {
     const type = document.getElementById('questionTypeSelect').value;
     const optionsSection = document.getElementById('questionOptionsSection');
     const dropdownDependentSection = document.getElementById('dropdownDependentSection');
+    const requiredSection = document.querySelector('.form-group:has(#questionRequiredInput)');
+    const placeholderSection = document.querySelector('.form-group:has(#questionPlaceholderInput)');
     
-    if (['radio', 'checkbox'].includes(type)) {
-        optionsSection.style.display = 'block';
-        dropdownDependentSection.style.display = 'none';
-    } else if (type === 'select') {
-        dropdownDependentSection.style.display = 'block';
-        populateDependentQuestionList();
-        updateOptionsVisibility(); // Kiểm tra hiển thị options section
-    } else {
+    if (type === 'divider') {
+        // Ẩn tất cả các trường không cần thiết cho divider
         optionsSection.style.display = 'none';
         dropdownDependentSection.style.display = 'none';
+        if (requiredSection) requiredSection.style.display = 'none';
+        if (placeholderSection) placeholderSection.style.display = 'none';
+    } else {
+        // Hiện lại các trường cho các loại câu hỏi khác
+        if (requiredSection) requiredSection.style.display = 'block';
+        if (placeholderSection) placeholderSection.style.display = 'block';
+        
+        if (['radio', 'checkbox'].includes(type)) {
+            optionsSection.style.display = 'block';
+            dropdownDependentSection.style.display = 'none';
+        } else if (type === 'select') {
+            dropdownDependentSection.style.display = 'block';
+            populateDependentQuestionList();
+            updateOptionsVisibility(); // Kiểm tra hiển thị options section
+        } else {
+            optionsSection.style.display = 'none';
+            dropdownDependentSection.style.display = 'none';
+        }
     }
 }
 
@@ -1410,18 +1433,46 @@ function saveQuestion() {
     const required = document.getElementById('questionRequiredInput').checked;
     const placeholder = document.getElementById('questionPlaceholderInput').value.trim();
     
-    if (!title) {
+    // Đối với divider, không cần title
+    if (type !== 'divider' && !title) {
         alert('Vui lòng nhập tiêu đề câu hỏi');
         return;
     }
     
     const questionData = {
-        title: title,
-        icon: icon,
+        title: type === 'divider' ? 'Đường kẻ ngang' : title,
+        icon: type === 'divider' ? 'fas fa-minus' : icon,
         type: type,
-        required: required,
-        placeholder: placeholder
+        required: type === 'divider' ? false : required,
+        placeholder: type === 'divider' ? '' : placeholder
     };
+    
+    // Đối với divider, không cần xử lý options
+    if (type === 'divider') {
+        const group = currentConfig.questionGroups.find(g => g.id === currentEditingQuestion.groupId);
+        
+        if (!group) {
+            alert('Không tìm thấy nhóm câu hỏi');
+            return;
+        }
+        
+        if (currentEditingQuestion.id) {
+            // Edit existing question
+            const existingQuestion = group.questions.find(q => q.id === currentEditingQuestion.id);
+            if (existingQuestion) {
+                Object.assign(existingQuestion, questionData);
+            }
+        } else {
+            // Add new question
+            questionData.id = 'q_' + Date.now();
+            questionData.order = group.questions.length + 1;
+            group.questions.push(questionData);
+        }
+        
+        renderQuestionGroups();
+        closeQuestionModal();
+        return;
+    }
     
     // Handle dropdown dependent
     if (type === 'select') {
@@ -1692,6 +1743,11 @@ function collectFormData(form) {
     
     currentConfig.questionGroups.forEach(group => {
         group.questions.forEach(question => {
+            // Bỏ qua divider vì nó không có dữ liệu để thu thập
+            if (question.type === 'divider') {
+                return;
+            }
+            
             const element = form.querySelector(`[name="${question.id}"]`);
             
             if (element) {
