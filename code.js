@@ -80,6 +80,7 @@ function createDefaultConfig() {
     primaryColor: "#d82c27",
     secondaryColor: "#f8f8f8",
     textColor: "#333333",
+    externalSpreadsheetId: "",
     sheetName: "Dữ liệu khảo sát",
     imageFolder: "Ảnh khảo sát",
     randomizeQuestions: false,
@@ -126,7 +127,19 @@ function updateSheetHeaders() {
     const config = getConfig();
     console.log('Config for header update:', JSON.stringify(config, null, 2));
     
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Sử dụng spreadsheet bên ngoài nếu có cấu hình
+    let ss;
+    if (config.externalSpreadsheetId && config.externalSpreadsheetId.trim() !== '') {
+      try {
+        ss = SpreadsheetApp.openById(config.externalSpreadsheetId);
+      } catch (error) {
+        console.error('Không thể mở spreadsheet bên ngoài:', error);
+        throw new Error('Không thể kết nối đến Google Sheet bên ngoài. Vui lòng kiểm tra ID và quyền truy cập.');
+      }
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
     let dataSheet = ss.getSheetByName(config.sheetName);
     
     if (!dataSheet) {
@@ -216,7 +229,20 @@ function saveConfig(config) {
 function saveFormData(formData) {
   try {
     const config = getConfig();
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Sử dụng spreadsheet bên ngoài nếu có cấu hình
+    let ss;
+    if (config.externalSpreadsheetId && config.externalSpreadsheetId.trim() !== '') {
+      try {
+        ss = SpreadsheetApp.openById(config.externalSpreadsheetId);
+      } catch (error) {
+        console.error('Không thể mở spreadsheet bên ngoài:', error);
+        throw new Error('Không thể kết nối đến Google Sheet bên ngoài. Vui lòng kiểm tra ID và quyền truy cập.');
+      }
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
     let dataSheet = ss.getSheetByName(config.sheetName);
     
     if (!dataSheet) {
@@ -300,7 +326,20 @@ function uploadImage(fileBlob, customerName, uniqueId, originalFileName) {  // T
     const fileUrl = file.getUrl();
     
     // Save image info to "Hình ảnh" sheet
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Sử dụng spreadsheet bên ngoài nếu có cấu hình
+    let ss;
+    if (config.externalSpreadsheetId && config.externalSpreadsheetId.trim() !== '') {
+      try {
+        ss = SpreadsheetApp.openById(config.externalSpreadsheetId);
+      } catch (error) {
+        console.error('Không thể mở spreadsheet bên ngoài cho ảnh:', error);
+        // Fallback về spreadsheet mặc định nếu không thể mở spreadsheet bên ngoài
+        ss = SpreadsheetApp.getActiveSpreadsheet();
+      }
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
     let imageSheet = ss.getSheetByName('Hình ảnh');
     
     if (!imageSheet) {
