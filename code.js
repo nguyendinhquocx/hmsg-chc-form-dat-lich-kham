@@ -81,7 +81,7 @@ function createDefaultConfig() {
     secondaryColor: "#f8f8f8",
     textColor: "#333333",
     sheetName: "Dữ liệu khảo sát",
-    imageFolder: "📕Ảnh khảo sát",
+    imageFolder: "Ảnh khảo sát",
     randomizeQuestions: false,
     questionGroups: [
       {

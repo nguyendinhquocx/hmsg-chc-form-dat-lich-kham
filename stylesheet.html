@@ -104,7 +104,7 @@ body {
 /* Admin Interface */
 #adminInterface {
     min-height: 100vh;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background: #ffffff;
 }
 
 /* Layout mới cho form chỉnh sửa câu hỏi */
@@ -155,9 +155,10 @@ body {
 }
 
 .admin-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     margin: 0;
     text-align: center; /* Căn giữa title */
+    font-weight: 700;
 }
 
 .admin-actions {
@@ -185,7 +186,8 @@ body {
 .config-section h3 {
     color: var(--primary-color);
     margin-bottom: 20px;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
+    font-weight: 300;
     border-bottom: 2px solid var(--primary-color);
     padding-bottom: 10px;
 }
@@ -369,7 +371,12 @@ body {
     border-radius: 6px;
     cursor: pointer;
     transition: var(--transition);
-    color: var(--text-color);
+    color: #ffffff !important;
+}
+
+.btn-icon i {
+    color: #ffffff !important;
+    font-size: 14px;
 }
 
 .btn-icon:hover {
@@ -1553,8 +1560,8 @@ css/* Icon Picker Styles - Compact & Higher Position */
     order: 2;
     gap: 15px;
     
-    /* Default: Nằm giữa (cho trường hợp 1 nút) */
-    justify-content: center;
+    /* Default: Căn trái (cho trường hợp 1 nút) */
+    justify-content: flex-start;
 }
 
 /* Khi có 2 nút con: justify space-between */
@@ -1613,7 +1620,7 @@ css/* Icon Picker Styles - Compact & Higher Position */
 #nextPageBtn {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     color: white;
-    border: 1px solid var(--primary-color);
+    border: none;
 }
 
 #nextPageBtn:hover {
@@ -1625,8 +1632,7 @@ css/* Icon Picker Styles - Compact & Higher Position */
 /* Desktop styling */
 @media (min-width: 769px) {
     .navigation-buttons {
-        max-width: 600px;
-        margin: 0 auto;
+        margin: 0;
     }
     
     /* Desktop với 2 nút: prev button absolute left, next ở center */
@@ -1634,6 +1640,12 @@ css/* Icon Picker Styles - Compact & Higher Position */
     .navigation-buttons.has-two-buttons {
         justify-content: center;
         position: relative;
+    }
+    
+    /* Desktop với 1 nút: vẫn căn trái */
+    .navigation-buttons:not(:has(#prevPageBtn:not([style*="display: none"]))),
+    .navigation-buttons:not(.has-two-buttons) {
+        justify-content: flex-start;
     }
     
     .navigation-buttons:has(#prevPageBtn:not([style*="display: none"])) #prevPageBtn,
