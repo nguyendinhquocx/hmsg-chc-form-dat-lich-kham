@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test - Kiểm tra Logic Lịch Hẹn</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #ffffff;
+            color: #000000;
+        }
+        .test-section {
+            border: 1px solid #000000;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #000000;
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 4px;
+        }
+        .code-block {
+            background: #000000;
+            color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .highlight {
+            background: #ffff00;
+            color: #000000;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        .error {
+            color: #d82c27;
+            font-weight: 600;
+        }
+        .success {
+            color: #28a745;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Test - Vấn đề Logic Lịch Hẹn</h1>
+    
+    <div class="test-section">
+        <div class="test-title">📊 Tình huống hiện tại</div>
+        <div class="test-item">
+            <strong>Cấu hình:</strong> Sáng tối đa 10, Chiều tối đa 15
+        </div>
+        <div class="test-item">
+            <strong>Dữ liệu thực tế:</strong> Ngày 26/07/2025 có 12 hàng buổi sáng
+        </div>
+        <div class="test-item">
+            <strong class="error">Vấn đề:</strong> Vẫn cho phép đăng ký và thêm dữ liệu vào bảng
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">🔧 Các điểm cần kiểm tra</div>
+        
+        <div class="test-item">
+            <strong>1. Kiểm tra Console Logs</strong>
+            <p>Mở Developer Tools (F12) → Console và thực hiện test để xem:</p>
+            <div class="code-block">
+Found columns - Date: X, Session: Y<br>
+Searching for date: 2025-07-26, session: morning<br>
+Row X: Date match - Original session: 'XXX', Normalized: 'XXX', Target: 'morning'<br>
+Final count for 2025-07-26 morning: XX<br>
+Checking availability: Date=2025-07-26, Session=morning, Count=XX, Limit=10
+            </div>
+        </div>
+
+        <div class="test-item">
+            <strong>2. Kiểm tra Headers trong Google Sheet</strong>
+            <p>Đảm bảo có cột chứa từ khóa:</p>
+            <ul>
+                <li><span class="highlight">"ngày" + "khám"</span> (ví dụ: "Ngày khám", "Ngày hẹn khám")</li>
+                <li><span class="highlight">"buổi" + "khám"</span> (ví dụ: "Buổi khám", "Buổi hẹn")</li>
+            </ul>
+        </div>
+
+        <div class="test-item">
+            <strong>3. Kiểm tra Giá trị trong Cột Buổi Khám</strong>
+            <p>Các giá trị được hỗ trợ:</p>
+            <ul>
+                <li>"morning", "sáng", "buổi sáng" → <span class="success">morning</span></li>
+                <li>"afternoon", "chiều", "buổi chiều" → <span class="success">afternoon</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">🚀 Cách Debug</div>
+        
+        <div class="test-item">
+            <strong>Bước 1:</strong> Mở Google Apps Script Editor
+        </div>
+        <div class="test-item">
+            <strong>Bước 2:</strong> Chạy function test này:
+            <div class="code-block">
+function debugAppointmentCount() {<br>
+&nbsp;&nbsp;const result = getAppointmentCount('2025-07-26', 'morning');<br>
+&nbsp;&nbsp;console.log('Debug result:', result);<br>
+&nbsp;&nbsp;return result;<br>
+}
+            </div>
+        </div>
+        <div class="test-item">
+            <strong>Bước 3:</strong> Kiểm tra Execution Transcript để xem logs
+        </div>
+        <div class="test-item">
+            <strong>Bước 4:</strong> Kiểm tra dữ liệu thực tế trong Google Sheet
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">🔍 Các nguyên nhân có thể</div>
+        
+        <div class="test-item">
+            <strong class="error">1. Không tìm thấy cột:</strong> Headers không chứa từ khóa đúng
+        </div>
+        <div class="test-item">
+            <strong class="error">2. Giá trị không khớp:</strong> Dữ liệu trong sheet khác với expected values
+        </div>
+        <div class="test-item">
+            <strong class="error">3. Format ngày:</strong> Ngày trong sheet không đúng format
+        </div>
+        <div class="test-item">
+            <strong class="error">4. Logic validation:</strong> Hàm validateAndSaveFormData không được gọi
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">✅ Giải pháp đã áp dụng</div>
+        
+        <div class="test-item">
+            <span class="success">✓</span> Thêm hàm normalizeSessionValue() để chuẩn hóa giá trị buổi khám
+        </div>
+        <div class="test-item">
+            <span class="success">✓</span> Thêm debug logging để theo dõi quá trình
+        </div>
+        <div class="test-item">
+            <span class="success">✓</span> Cải thiện logic so sánh trong getAppointmentCount()
+        </div>
+        <div class="test-item">
+            <span class="success">✓</span> Thêm validation trong checkAppointmentAvailability()
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="test-title">📝 Hướng dẫn Test</div>
+        
+        <div class="test-item">
+            <strong>1.</strong> Deploy lại Google Apps Script với code đã cập nhật
+        </div>
+        <div class="test-item">
+            <strong>2.</strong> Mở form và thử chọn ngày 26/07/2025, buổi sáng
+        </div>
+        <div class="test-item">
+            <strong>3.</strong> Mở Developer Tools (F12) → Console
+        </div>
+        <div class="test-item">
+            <strong>4.</strong> Quan sát các log messages để hiểu vấn đề
+        </div>
+        <div class="test-item">
+            <strong>5.</strong> Báo cáo kết quả để điều chỉnh tiếp
+        </div>
+    </div>
+
+    <p style="margin-top: 30px; text-align: center; color: #666;">
+        💡 <strong>Lưu ý:</strong> Sau khi test, hãy chia sẻ console logs để chúng ta có thể xác định chính xác nguyên nhân.
+    </p>
+</body>
+</html>

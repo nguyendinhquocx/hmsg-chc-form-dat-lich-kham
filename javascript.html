@@ -1788,6 +1788,8 @@ function handleFormSubmit(event) {
 function collectFormData(form) {
     const formData = {};
     
+    console.log('=== DEBUG collectFormData ===');
+    
     currentConfig.questionGroups.forEach(group => {
         group.questions.forEach(question => {
             // Bỏ qua divider vì nó không có dữ liệu để thu thập
@@ -1804,6 +1806,18 @@ function collectFormData(form) {
                 } else if (question.type === 'radio' || question.type === 'rating') {
                     const checked = form.querySelector(`[name="${question.id}"]:checked`);
                     formData[question.id] = checked ? checked.value : '';
+                    
+                    // Debug log for appointment-related questions
+                    const questionTitle = question.title.toLowerCase();
+                    if (questionTitle.includes('buổi') && questionTitle.includes('khám')) {
+                        console.log(`DEBUG Session Question: "${question.title}" (${question.id})`);
+                        console.log('Checked element:', checked);
+                        console.log('Selected value:', formData[question.id]);
+                    }
+                    if (questionTitle.includes('ngày') && questionTitle.includes('khám')) {
+                        console.log(`DEBUG Date Question: "${question.title}" (${question.id})`);
+                        console.log('Selected value:', formData[question.id]);
+                    }
                 } else {
                     formData[question.id] = element.value || '';
                 }
@@ -1811,6 +1825,7 @@ function collectFormData(form) {
         });
     });
     
+    console.log('Final formData:', formData);
     return formData;
 }
 
@@ -2102,12 +2117,19 @@ function checkAppointmentAvailability() {
     const selectedDate = dateField.value;
     const selectedSession = sessionField.value;
     
+    console.log('=== DEBUG checkAppointmentAvailability (Frontend) ===');
+    console.log('Selected date:', selectedDate);
+    console.log('Selected session:', selectedSession);
+    console.log('Session field element:', sessionField);
+    
     // Show loading indicator
     showAppointmentCheckingStatus('Đang kiểm tra tình trạng lịch hẹn...');
     
     google.script.run
         .withSuccessHandler(function(result) {
             hideAppointmentCheckingStatus();
+            
+            console.log('Backend result:', result);
             
             if (!result.available) {
                 showAppointmentUnavailableMessage(result.message, selectedDate, selectedSession);

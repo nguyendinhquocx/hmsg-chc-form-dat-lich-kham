@@ -449,16 +449,22 @@ function checkAppointmentAvailability(selectedDate, selectedSession) {
     const count = getAppointmentCount(selectedDate, selectedSession);
     const limit = selectedSession === 'morning' ? limits.morningLimit : limits.afternoonLimit;
     
+    console.log(`Checking availability: Date=${selectedDate}, Session=${selectedSession}, Count=${count}, Limit=${limit}`);
+    
     if (count >= limit) {
+      console.log('Appointment not available - limit exceeded');
+      const sessionText = selectedSession === 'morning' ? 'sáng' : 'chiều';
       return {
         available: false,
-        message: `Buổi ${selectedSession === 'morning' ? 'sáng' : 'chiều'} ngày ${formatDate(selected)} đã đủ ${limit} người. Vui lòng chọn ngày hoặc buổi khác.`
+        message: `Buổi ${sessionText} ngày ${formatDate(selected)} đã đủ ${limit} người. Vui lòng chọn ngày hoặc buổi khác.`
       };
     }
     
+    console.log('Appointment available');
+    const sessionText = selectedSession === 'morning' ? 'sáng' : 'chiều';
     return {
       available: true,
-      message: `Còn ${limit - count} chỗ cho buổi ${selectedSession === 'morning' ? 'sáng' : 'chiều'} ngày ${formatDate(selected)}`
+      message: `Còn ${limit - count} chỗ cho buổi ${sessionText} ngày ${formatDate(selected)}`
     };
     
   } catch (error) {
@@ -509,22 +515,40 @@ function getAppointmentCount(selectedDate, selectedSession) {
     
     if (dateColumnIndex === -1 || sessionColumnIndex === -1) {
       console.log('Không tìm thấy cột ngày khám hoặc buổi khám');
+      console.log('Headers:', headers);
+      console.log('Date column index:', dateColumnIndex, 'Session column index:', sessionColumnIndex);
       return 0;
     }
+    
+    console.log('Found columns - Date:', dateColumnIndex, 'Session:', sessionColumnIndex);
+    console.log('Searching for date:', selectedDate, 'session:', selectedSession);
+    console.log('Headers found:', headers);
     
     // Đếm số lượng đăng ký
     let count = 0;
     const targetDate = new Date(selectedDate).toDateString();
+    console.log('Target date string:', targetDate);
     
     for (let i = 1; i < data.length; i++) {
       const rowDate = new Date(data[i][dateColumnIndex]).toDateString();
       const rowSession = data[i][sessionColumnIndex];
       
-      if (rowDate === targetDate && rowSession === selectedSession) {
+      // Chuẩn hóa giá trị buổi khám để so sánh
+      const normalizedRowSession = normalizeSessionValue(rowSession);
+      const normalizedSelectedSession = normalizeSessionValue(selectedSession);
+      
+      // Debug logging
+      if (rowDate === targetDate) {
+        console.log(`Row ${i}: Date match - Original session: '${rowSession}', Normalized: '${normalizedRowSession}', Target: '${normalizedSelectedSession}'`);
+      }
+      
+      if (rowDate === targetDate && normalizedRowSession === normalizedSelectedSession) {
         count++;
+        console.log(`Match found! Count: ${count}`);
       }
     }
     
+    console.log(`Final count for ${selectedDate} ${selectedSession}: ${count}`);
     return count;
     
   } catch (error) {
@@ -538,9 +562,29 @@ function formatDate(date) {
   return date.toLocaleDateString('vi-VN');
 }
 
+// Normalize session value for comparison
+function normalizeSessionValue(sessionValue) {
+  if (!sessionValue) return '';
+  
+  const value = sessionValue.toString().toLowerCase().trim();
+  
+  // Chuyển đổi các giá trị có thể về dạng chuẩn
+  if (value === 'morning' || value === 'sáng' || value === 'buổi sáng') {
+    return 'morning';
+  }
+  if (value === 'afternoon' || value === 'chiều' || value === 'buổi chiều') {
+    return 'afternoon';
+  }
+  
+  return value;
+}
+
 // Validate appointment before saving
 function validateAndSaveFormData(formData) {
   try {
+    console.log('=== DEBUG validateAndSaveFormData ===');
+    console.log('Received formData:', formData);
+    
     // Tìm ngày khám và buổi khám trong formData
     let selectedDate = null;
     let selectedSession = null;
@@ -551,25 +595,36 @@ function validateAndSaveFormData(formData) {
     config.questionGroups.forEach(group => {
       group.questions.forEach(question => {
         const questionTitle = question.title.toLowerCase();
+        console.log(`Checking question: "${question.title}" (${question.id})`);
+        
         if (questionTitle.includes('ngày') && questionTitle.includes('khám')) {
           selectedDate = formData[question.id];
+          console.log(`Found date question: ${question.title} = ${selectedDate}`);
         }
         if (questionTitle.includes('buổi') && questionTitle.includes('khám')) {
           selectedSession = formData[question.id];
+          console.log(`Found session question: ${question.title} = ${selectedSession}`);
         }
       });
     });
     
+    console.log('Final values - selectedDate:', selectedDate, 'selectedSession:', selectedSession);
+    
     // Nếu có cấu hình appointment limits và tìm thấy thông tin ngày/buổi khám
     if (selectedDate && selectedSession) {
+      console.log('Calling checkAppointmentAvailability with:', selectedDate, selectedSession);
       const availability = checkAppointmentAvailability(selectedDate, selectedSession);
+      console.log('Availability result:', availability);
       
       if (!availability.available) {
+        console.log('Appointment not available, returning error:', availability.message);
         return {
           success: false,
           error: availability.message
         };
       }
+    } else {
+      console.log('No appointment validation needed - selectedDate:', selectedDate, 'selectedSession:', selectedSession);
     }
     
     // Nếu validation thành công, lưu dữ liệu
@@ -580,6 +635,135 @@ function validateAndSaveFormData(formData) {
     return saveFormData(formData); // Fallback to normal save if validation fails
   }
 }
+
+// Debug function for specific issue
+function debugSpecificCase() {
+  console.log('=== DEBUG SPECIFIC CASE: 26/07/2025 morning ===');
+  
+  const testDate = '2025-07-26';
+  const testSession = 'morning';
+  
+  console.log('Testing with date:', testDate, 'session:', testSession);
+  
+  // Test the availability check
+  const result = checkAppointmentAvailability(testDate, testSession);
+  console.log('Result:', result);
+  
+  // Test the count function directly
+  const count = getAppointmentCount(testDate, testSession);
+  console.log('Direct count result:', count);
+  
+  // Test with afternoon for comparison
+  const afternoonResult = checkAppointmentAvailability(testDate, 'afternoon');
+  console.log('Afternoon result for comparison:', afternoonResult);
+  
+  const afternoonCount = getAppointmentCount(testDate, 'afternoon');
+  console.log('Afternoon count:', afternoonCount);
+  
+  return {
+    morning: { result, count },
+    afternoon: { result: afternoonResult, count: afternoonCount }
+  };
+}
+
+// Debug helper function để kiểm tra số lượng đăng ký
+function debugAppointmentCount(date, session) {
+  console.log(`=== DEBUG APPOINTMENT COUNT: ${date} ${session} ===`);
+  const count = getAppointmentCount(date, session);
+  console.log('Count result:', count);
+  return count;
+}
+
+// Debug helper function để kiểm tra cấu trúc sheet
+function debugSheetStructure() {
+  console.log('=== DEBUG SHEET STRUCTURE ===');
+  
+  try {
+    const config = getConfig();
+    
+    // Sử dụng spreadsheet bên ngoài nếu có cấu hình
+    let ss;
+    if (config.externalSpreadsheetId && config.externalSpreadsheetId.trim() !== '') {
+      ss = SpreadsheetApp.openById(config.externalSpreadsheetId);
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
+    const dataSheet = ss.getSheetByName(config.sheetName);
+    if (!dataSheet) {
+      console.log('Sheet not found:', config.sheetName);
+      return { error: 'Sheet not found' };
+    }
+    
+    const headers = dataSheet.getRange(1, 1, 1, dataSheet.getLastColumn()).getValues()[0];
+    
+    console.log('Headers found:', headers);
+    console.log('Total columns:', headers.length);
+    
+    // Tìm các cột quan trọng
+    const dateColumnIndex = headers.findIndex(header => 
+      header && header.toString().toLowerCase().includes('ngày'));
+    const sessionColumnIndex = headers.findIndex(header => 
+      header && header.toString().toLowerCase().includes('buổi'));
+    
+    console.log('Date column index:', dateColumnIndex);
+    console.log('Session column index:', sessionColumnIndex);
+    
+    return {
+      headers: headers,
+      totalColumns: headers.length,
+      dateColumnIndex: dateColumnIndex,
+      sessionColumnIndex: sessionColumnIndex,
+      lastRow: dataSheet.getLastRow()
+    };
+  } catch (error) {
+    console.error('Error in debugSheetStructure:', error);
+     return { error: error.toString() };
+   }
+ }
+ 
+ // Debug helper function để kiểm tra dữ liệu thực tế trong sheet
+ function debugSheetData(maxRows = 5) {
+  console.log('=== DEBUG SHEET DATA ===');
+  
+  try {
+    const config = getConfig();
+    
+    // Sử dụng spreadsheet bên ngoài nếu có cấu hình
+    let ss;
+    if (config.externalSpreadsheetId && config.externalSpreadsheetId.trim() !== '') {
+      ss = SpreadsheetApp.openById(config.externalSpreadsheetId);
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
+    const dataSheet = ss.getSheetByName(config.sheetName);
+    if (!dataSheet) {
+      return { error: 'Sheet not found' };
+    }
+    
+    const data = dataSheet.getDataRange().getValues();
+    console.log('Total rows:', data.length);
+    
+    if (data.length > 0) {
+      console.log('Headers:', data[0]);
+      
+      const rowsToShow = Math.min(maxRows, data.length - 1);
+      for (let i = 1; i <= rowsToShow; i++) {
+        console.log(`Row ${i}:`, data[i]);
+      }
+    }
+    
+    return {
+       totalRows: data.length,
+       headers: data[0] || [],
+       sampleData: data.slice(1, maxRows + 1)
+     };
+   } catch (error) {
+     console.error('Error in debugSheetData:', error);
+     return { error: error.toString() };
+   }
+ }
 
 // Admin functions
 function generateQuestionId() {
@@ -595,4 +779,108 @@ function testConfig() {
   const config = getConfig();
   console.log('Current config:', config);
   return config;
+}
+
+// Debug function to test appointment counting
+function debugAppointmentCount(testDate = '2025-07-26', testSession = 'morning') {
+  console.log('=== DEBUG APPOINTMENT COUNT ===');
+  console.log('Testing date:', testDate);
+  console.log('Testing session:', testSession);
+  
+  const count = getAppointmentCount(testDate, testSession);
+  console.log('Final result:', count);
+  
+  // Also test availability check
+  console.log('\n=== DEBUG AVAILABILITY CHECK ===');
+  const availability = checkAppointmentAvailability(testDate, testSession);
+  console.log('Availability result:', availability);
+  
+  return {
+    count: count,
+    availability: availability,
+    testDate: testDate,
+    testSession: testSession
+  };
+}
+
+// Debug function specifically for the reported issue
+function debugSpecificIssue() {
+  console.log('=== DEBUGGING SPECIFIC ISSUE ===');
+  console.log('Testing: 26/07/2025 buổi sáng (should show morning message, not afternoon)');
+  
+  const testDate = '2025-07-26';
+  const testSession = 'morning';
+  
+  console.log('1. Testing getAppointmentCount:');
+  const morningCount = getAppointmentCount(testDate, 'morning');
+  const afternoonCount = getAppointmentCount(testDate, 'afternoon');
+  console.log(`Morning count: ${morningCount}`);
+  console.log(`Afternoon count: ${afternoonCount}`);
+  
+  console.log('\n2. Testing checkAppointmentAvailability for morning:');
+  const morningAvailability = checkAppointmentAvailability(testDate, 'morning');
+  console.log('Morning availability:', morningAvailability);
+  
+  console.log('\n3. Testing checkAppointmentAvailability for afternoon:');
+  const afternoonAvailability = checkAppointmentAvailability(testDate, 'afternoon');
+  console.log('Afternoon availability:', afternoonAvailability);
+  
+  console.log('\n4. Configuration check:');
+  const config = getConfig();
+  if (config.appointmentLimits) {
+    console.log('Morning limit:', config.appointmentLimits.morningLimit);
+    console.log('Afternoon limit:', config.appointmentLimits.afternoonLimit);
+  }
+  
+  return {
+    date: testDate,
+    morningCount: morningCount,
+    afternoonCount: afternoonCount,
+    morningAvailability: morningAvailability,
+    afternoonAvailability: afternoonAvailability,
+    config: config.appointmentLimits
+  };
+}
+
+// Debug function to check sheet structure
+function debugSheetStructure() {
+  try {
+    const config = getConfig();
+    
+    // Sử dụng spreadsheet bên ngoài nếu có cấu hình
+    let ss;
+    if (config.externalSpreadsheetId && config.externalSpreadsheetId.trim() !== '') {
+      ss = SpreadsheetApp.openById(config.externalSpreadsheetId);
+    } else {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+    
+    const dataSheet = ss.getSheetByName(config.sheetName);
+    if (!dataSheet) {
+      console.log('Sheet not found:', config.sheetName);
+      return { error: 'Sheet not found' };
+    }
+    
+    const data = dataSheet.getDataRange().getValues();
+    console.log('Sheet structure:');
+    console.log('Total rows:', data.length);
+    console.log('Headers:', data[0]);
+    
+    if (data.length > 1) {
+      console.log('Sample data (first 3 rows):');
+      for (let i = 1; i < Math.min(4, data.length); i++) {
+        console.log(`Row ${i}:`, data[i]);
+      }
+    }
+    
+    return {
+      totalRows: data.length,
+      headers: data[0],
+      sampleData: data.slice(1, 4)
+    };
+    
+  } catch (error) {
+    console.error('Error debugging sheet structure:', error);
+    return { error: error.toString() };
+  }
 }
