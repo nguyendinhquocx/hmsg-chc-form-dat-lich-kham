@@ -83,6 +83,7 @@ function createDefaultConfig() {
     sheetName: "Dữ liệu khảo sát",
     imageFolder: "Ảnh khảo sát",
     randomizeQuestions: false,
+    surveyNotes: "",
     questionGroups: [
       {
         id: "group_1",

@@ -407,6 +407,26 @@ function generateSurveyInterface(config) {
     
     form.appendChild(pagesContainer);
     
+    // Survey Notes (if exists)
+    if (config.surveyNotes && config.surveyNotes.trim()) {
+        const notesContainer = document.createElement('div');
+        notesContainer.className = 'survey-notes';
+        notesContainer.style.cssText = `
+            margin: 20px 0;
+            padding: 15px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-color);
+            white-space: pre-wrap;
+        `;
+        notesContainer.textContent = config.surveyNotes;
+        form.appendChild(notesContainer);
+    }
+    
     // Navigation buttons
     const navContainer = document.createElement('div');
     navContainer.className = 'page-navigation';
@@ -801,6 +821,13 @@ function applyTheme(config) {
     root.style.setProperty('--primary-dark', adjustBrightness(config.primaryColor, -20));
     root.style.setProperty('--primary-light', adjustBrightness(config.primaryColor, 20));
     
+    // Convert primary color to RGB for background transparency
+    const hex = config.primaryColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    root.style.setProperty('--primary-color-rgb', `${r}, ${g}, ${b}`);
+    
     // Đã xóa bỏ việc cập nhật màu wave
 }
 
@@ -886,6 +913,7 @@ function loadAdminConfiguration() {
     document.getElementById('sheetName').value = currentConfig.sheetName || '';
     document.getElementById('imageFolder').value = currentConfig.imageFolder || '';
     document.getElementById('randomizeQuestions').checked = currentConfig.randomizeQuestions || false;
+    document.getElementById('surveyNotes').value = currentConfig.surveyNotes || '';
     
     // Add event listener for primary color changes (real-time update)
     document.getElementById('primaryColor').addEventListener('input', function(e) {
@@ -1512,6 +1540,7 @@ function saveConfiguration() {
     currentConfig.sheetName = document.getElementById('sheetName').value;
     currentConfig.imageFolder = document.getElementById('imageFolder').value;
     currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
+    currentConfig.surveyNotes = document.getElementById('surveyNotes').value;
     
     document.getElementById('loadingOverlay').style.display = 'flex';
     
@@ -1614,6 +1643,7 @@ function saveConfigToMemory() {
     currentConfig.sheetName = document.getElementById('sheetName').value;
     currentConfig.imageFolder = document.getElementById('imageFolder').value;
     currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
+    currentConfig.surveyNotes = document.getElementById('surveyNotes').value;
     
     // Đã xóa bỏ việc cập nhật màu wave
 }
