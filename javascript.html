@@ -386,11 +386,13 @@ function generateSurveyInterface(config) {
         // Generate form fields cho trang này
         pageGroups.forEach(group => {
             if (group.questions && group.questions.length > 0) {
-                // Group title
-                const sectionTitle = document.createElement('div');
-                sectionTitle.className = 'section-title';
-                sectionTitle.innerHTML = `<h2><i class="${group.icon}"></i> ${group.title}</h2>`;
-                pageDiv.appendChild(sectionTitle);
+                // Group title - chỉ hiển thị nếu có nhiều hơn 1 nhóm trong trang hoặc có nhiều trang
+                if (pageGroups.length > 1 || sortedPages.length > 1) {
+                    const sectionTitle = document.createElement('div');
+                    sectionTitle.className = 'section-title';
+                    sectionTitle.innerHTML = `<h2><i class="${group.icon}"></i> ${group.title}</h2>`;
+                    pageDiv.appendChild(sectionTitle);
+                }
                 
                 // Questions
                 group.questions.forEach(question => {
