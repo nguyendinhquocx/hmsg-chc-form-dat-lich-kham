@@ -197,6 +197,57 @@ body {
     grid-template-columns: 1fr; /* Chỉ 1 cột để các field dài hơn */
 }
 
+/* Available Variables Styles */
+.available-variables {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.variables-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.variable-tag {
+    background: var(--primary-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.variable-tag:hover {
+    background: var(--primary-dark);
+    transform: scale(1.05);
+}
+
+.variable-tag.clickable {
+    position: relative;
+}
+
+.variable-tag.clickable:hover::after {
+    content: "Click để copy";
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
 /* Grid riêng cho URL row */
 .url-row {
     display: grid;

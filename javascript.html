@@ -211,6 +211,7 @@ function loadConfiguration() {
         .withSuccessHandler(function(config) {
             currentConfig = config;
             generateSurveyInterface(config);
+            updateAvailableVariables(); // Cập nhật danh sách biến email sau khi tải cấu hình
             document.getElementById('configLoading').style.display = 'none';
         })
         .withFailureHandler(function(error) {
@@ -968,6 +969,9 @@ function loadAdminConfiguration() {
     
     // Load question groups
     renderQuestionGroups();
+    
+    // Cập nhật danh sách biến email có sẵn
+    updateAvailableVariables();
 }
 
 function renderQuestionGroups() {
@@ -1229,6 +1233,7 @@ function deleteGroup(button) {
         
         currentConfig.questionGroups = currentConfig.questionGroups.filter(g => g.id !== groupId);
         renderQuestionGroups();
+        updateAvailableVariables(); // Cập nhật danh sách biến email sau khi xóa nhóm
     }
 }
 
@@ -1288,6 +1293,7 @@ function saveGroup() {
     }
     
     renderQuestionGroups();
+    updateAvailableVariables(); // Cập nhật danh sách biến email sau khi lưu nhóm
     closeGroupModal();
 }
 
@@ -1306,6 +1312,7 @@ function addQuestion(button) {
         currentEditingQuestion = { groupId: groupId };
         document.getElementById('questionModalTitle').textContent = 'Thêm câu hỏi mới';
         resetQuestionModal();
+        updateAvailableVariables(); // Cập nhật danh sách biến email có sẵn
         document.getElementById('questionModal').style.display = 'block';
     }
 }
@@ -1322,6 +1329,7 @@ function editQuestion(button) {
         currentEditingQuestion = { ...question, groupId: groupId };
         document.getElementById('questionModalTitle').textContent = 'Chỉnh sửa câu hỏi';
         loadQuestionToModal(question);
+        updateAvailableVariables(); // Cập nhật danh sách biến email có sẵn
         document.getElementById('questionModal').style.display = 'block';
     }
 }
@@ -1337,6 +1345,7 @@ function deleteQuestion(button) {
         if (group) {
             group.questions = group.questions.filter(q => q.id !== questionId);
             renderQuestionGroups();
+            updateAvailableVariables(); // Cập nhật danh sách biến email sau khi xóa
         }
     }
 }
@@ -1349,6 +1358,7 @@ function resetQuestionModal() {
     document.getElementById('questionRequiredInput').checked = false;
     document.getElementById('questionPlaceholderInput').value = '';
     document.getElementById('questionOptionsInput').value = '';
+    document.getElementById('questionVariableInput').value = '';
     
     // Reset dropdown dependent
     document.getElementById('dropdownDependentCheck').checked = false;
@@ -1367,6 +1377,7 @@ function loadQuestionToModal(question) {
     document.getElementById('questionTypeSelect').value = question.type;
     document.getElementById('questionRequiredInput').checked = question.required;
     document.getElementById('questionPlaceholderInput').value = question.placeholder || '';
+    document.getElementById('questionVariableInput').value = question.emailVariable || '';
     
     updateQuestionTypeOptions();
     
@@ -1468,6 +1479,7 @@ function saveQuestion() {
     const type = document.getElementById('questionTypeSelect').value;
     const required = document.getElementById('questionRequiredInput').checked;
     const placeholder = document.getElementById('questionPlaceholderInput').value.trim();
+    const emailVariable = document.getElementById('questionVariableInput').value.trim();
     
     // Đối với divider, không cần title
     if (type !== 'divider' && !title) {
@@ -1475,12 +1487,37 @@ function saveQuestion() {
         return;
     }
     
+    // Tự động sinh biến email từ tiêu đề nếu không có biến tùy chỉnh
+    let finalEmailVariable = '';
+    if (type !== 'divider') {
+        if (emailVariable) {
+            finalEmailVariable = emailVariable;
+        } else {
+            // Tự động sinh từ tiêu đề: loại bỏ dấu, khoảng trắng, chuyển thành camelCase
+            finalEmailVariable = title
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu tiếng Việt
+                .replace(/đ/g, 'd')
+                .replace(/[^a-z0-9\s]/g, '') // Loại bỏ ký tự đặc biệt
+                .replace(/\s+/g, ' ') // Chuẩn hóa khoảng trắng
+                .trim()
+                .split(' ')
+                .map((word, index) => {
+                    if (index === 0) return word;
+                    return word.charAt(0).toUpperCase() + word.slice(1);
+                })
+                .join('');
+        }
+    }
+    
     const questionData = {
         title: type === 'divider' ? 'Đường kẻ ngang' : title,
         icon: type === 'divider' ? 'fas fa-minus' : icon,
         type: type,
         required: type === 'divider' ? false : required,
-        placeholder: type === 'divider' ? '' : placeholder
+        placeholder: type === 'divider' ? '' : placeholder,
+        emailVariable: finalEmailVariable
     };
     
     // Đối với divider, không cần xử lý options
@@ -1605,12 +1642,107 @@ function saveQuestion() {
     }
     
     renderQuestionGroups();
+    updateAvailableVariables(); // Cập nhật danh sách biến email
     closeQuestionModal();
 }
 
 function closeQuestionModal() {
     document.getElementById('questionModal').style.display = 'none';
     currentEditingQuestion = null;
+}
+
+// Email Variables Management
+function updateAvailableVariables() {
+    const variablesList = document.getElementById('variablesList');
+    if (!variablesList || !currentConfig || !currentConfig.questionGroups) return;
+    
+    // Thu thập tất cả biến từ các câu hỏi
+    const variables = new Set();
+    
+    currentConfig.questionGroups.forEach(group => {
+        if (group.questions) {
+            group.questions.forEach(question => {
+                if (question.emailVariable && question.emailVariable.trim()) {
+                    variables.add(question.emailVariable.trim());
+                }
+            });
+        }
+    });
+    
+    // Thêm các biến mặc định của hệ thống
+    const systemVariables = ['companyName', 'appointmentDate', 'session'];
+    systemVariables.forEach(variable => variables.add(variable));
+    
+    // Hiển thị danh sách biến
+    if (variables.size === 0) {
+        variablesList.innerHTML = '<span class="help-text">Chưa có biến nào được tạo</span>';
+    } else {
+        variablesList.innerHTML = Array.from(variables)
+            .sort()
+            .map(variable => `<span class="variable-tag clickable" onclick="copyVariableToClipboard('${variable}')">{${variable}}</span>`)
+            .join('');
+    }
+}
+
+function copyVariableToClipboard(variableName) {
+    const textToCopy = `{${variableName}}`;
+    
+    // Sử dụng Clipboard API nếu có
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast(`Đã copy biến ${textToCopy} vào clipboard`);
+        }).catch(() => {
+            fallbackCopyToClipboard(textToCopy);
+        });
+    } else {
+        fallbackCopyToClipboard(textToCopy);
+    }
+}
+
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        showToast(`Đã copy biến ${text} vào clipboard`);
+    } catch (err) {
+        console.error('Không thể copy:', err);
+        showToast('Không thể copy biến. Vui lòng copy thủ công.');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+function showToast(message) {
+    // Tạo toast notification đơn giản
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        z-index: 10000;
+        font-size: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
 }
 
 // Configuration Management
@@ -1858,7 +1990,7 @@ function sendEmailNotification(formData, rowId) {
             rowId: rowId
         };
         
-        // Replace template variables with actual form data
+        // Replace template variables with actual form data![1752645723474](image/javascript/1752645723474.png)
         emailData.body = replaceTemplateVariables(emailData.template, formData);
         
         console.log('Prepared email data:', emailData);
@@ -1988,6 +2120,19 @@ function replaceTemplateVariables(template, formData) {
         '{appointmentSession}': findFormValueByQuestion(['buổi khám', 'session', 'buổi']) || '',
         '{companyName}': findCompanyName()
     };
+    
+    // Thêm các biến tùy chỉnh từ emailVariable của các câu hỏi
+    if (currentConfig && currentConfig.questionGroups) {
+        currentConfig.questionGroups.forEach(group => {
+            group.questions.forEach(question => {
+                if (question.emailVariable && question.emailVariable.trim()) {
+                    const variableName = `{${question.emailVariable.trim()}}`;
+                    const variableValue = formData[question.id] || '';
+                    replacements[variableName] = variableValue;
+                }
+            });
+        });
+    }
     
     // Debug logging để kiểm tra mapping
     console.log('=== EMAIL TEMPLATE VARIABLE MAPPING ===');

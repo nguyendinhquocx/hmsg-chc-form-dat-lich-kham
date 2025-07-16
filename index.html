@@ -207,6 +207,16 @@
                         </div>
                         
                         <div class="form-group">
+                            <label>Biến email có sẵn</label>
+                            <div id="availableVariables" class="available-variables">
+                                <small class="help-text">Các biến sẽ được tự động cập nhật khi bạn tạo/chỉnh sửa câu hỏi</small>
+                                <div id="variablesList" class="variables-list">
+                                    <!-- Danh sách biến sẽ được hiển thị ở đây -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
                             <label>Nội dung email template</label>
                             <textarea id="emailTemplate" rows="15" placeholder="Nhập nội dung email template...">
 Chào {customerName},
@@ -407,6 +417,12 @@ Hoàn Mỹ Gold – PXL
                 <div class="form-group">
                     <label>Placeholder/Gợi ý</label>
                     <input type="text" id="questionPlaceholderInput" placeholder="Văn bản gợi ý...">
+                </div>
+                
+                <div class="form-group">
+                    <label>Biến email template</label>
+                    <input type="text" id="questionVariableInput" placeholder="Ví dụ: customerName, email, phone...">
+                    <small class="help-text">Tên biến sẽ được sử dụng trong email template dưới dạng {tênBiến}. Để trống để tự động sinh từ tiêu đề câu hỏi.</small>
                 </div>
             </div>
 
