@@ -971,3 +971,53 @@ function debugSheetStructure() {
     return { error: error.toString() };
   }
 }
+
+// Email notification function
+function sendEmailNotification(emailData) {
+  try {
+    console.log('Sending email notification:', emailData);
+    
+    // Validate email data
+    if (!emailData.to || !emailData.to.includes('@')) {
+      console.error('Invalid email address:', emailData.to);
+      return { success: false, error: 'Invalid email address' };
+    }
+    
+    if (!emailData.subject || !emailData.body) {
+      console.error('Missing email subject or body');
+      return { success: false, error: 'Missing email subject or body' };
+    }
+    
+    // Send email using Gmail API
+    const emailOptions = {
+      to: emailData.to,
+      subject: emailData.subject,
+      htmlBody: emailData.body.replace(/\n/g, '<br>'),
+      name: 'HMSG Health Check System'
+    };
+    
+    // If sender email is specified, use it as reply-to
+    if (emailData.senderEmail && emailData.senderEmail.includes('@')) {
+      emailOptions.replyTo = emailData.senderEmail;
+    }
+    
+    // Send the email
+    GmailApp.sendEmail(
+      emailOptions.to,
+      emailOptions.subject,
+      '', // Plain text body (empty since we're using HTML)
+      {
+        htmlBody: emailOptions.htmlBody,
+        name: emailOptions.name,
+        replyTo: emailOptions.replyTo || undefined
+      }
+    );
+    
+    console.log('Email sent successfully to:', emailData.to);
+    return { success: true, message: 'Email sent successfully' };
+    
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return { success: false, error: error.toString() };
+  }
+}

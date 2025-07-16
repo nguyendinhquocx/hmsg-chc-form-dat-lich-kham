@@ -945,6 +945,19 @@ function loadAdminConfiguration() {
     // Add event listener for appointment limits checkbox
     document.getElementById('appointmentLimitsEnabled').addEventListener('change', toggleAppointmentLimitsConfig);
     
+    // Load email notification configuration
+    const emailNotification = currentConfig.emailNotification || {};
+    document.getElementById('emailNotificationEnabled').checked = emailNotification.enabled || false;
+    document.getElementById('emailSubject').value = emailNotification.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG';
+    document.getElementById('emailTemplate').value = emailNotification.template || getDefaultEmailTemplate();
+    document.getElementById('senderEmail').value = emailNotification.senderEmail || '';
+    
+    // Show/hide email notification config based on checkbox
+    toggleEmailNotificationConfig();
+    
+    // Add event listener for email notification checkbox
+    document.getElementById('emailNotificationEnabled').addEventListener('change', toggleEmailNotificationConfig);
+    
     // Add event listener for primary color changes (real-time update)
     document.getElementById('primaryColor').addEventListener('input', function(e) {
         if (isAdminMode) {
@@ -1738,6 +1751,14 @@ function saveConfigToMemory() {
         allowSunday: document.getElementById('allowSunday').checked
     };
     
+    // Update email notification configuration in memory
+    currentConfig.emailNotification = {
+        enabled: document.getElementById('emailNotificationEnabled').checked,
+        subject: document.getElementById('emailSubject').value,
+        template: document.getElementById('emailTemplate').value,
+        senderEmail: document.getElementById('senderEmail').value
+    };
+    
     // Đã xóa bỏ việc cập nhật màu wave
 }
 
@@ -1746,6 +1767,129 @@ function toggleAppointmentLimitsConfig() {
     const enabled = document.getElementById('appointmentLimitsEnabled').checked;
     const configDiv = document.getElementById('appointmentLimitsConfig');
     configDiv.style.display = enabled ? 'block' : 'none';
+}
+
+function toggleEmailNotificationConfig() {
+    const enabled = document.getElementById('emailNotificationEnabled').checked;
+    const configDiv = document.getElementById('emailNotificationConfig');
+    configDiv.style.display = enabled ? 'block' : 'none';
+}
+
+function getDefaultEmailTemplate() {
+    return `Chào {customerName},
+
+Cảm ơn bạn đã đăng ký lịch khám sức khỏe tại Hoàn Mỹ Gold (HMSG) cho công ty {companyName}.
+
+Thông tin đăng ký của bạn đã được ghi nhận như sau:
+
+**- Họ và tên:** {customerName}
+**- Email liên hệ:** {customerEmail}
+**- Số điện thoại:** {customerPhone}
+**- Ngày sinh:** {customerBirthDate}
+**- Giới tính:** {customerGender}
+**- Tình trạng hôn nhân:** {customerMaritalStatus}
+**- Ngày khám:** {appointmentDate}
+**- Buổi khám:** {appointmentSession}
+
+**Địa điểm khám:**
+Hoàn Mỹ Gold – PXL
+245 Phan Xích Long, Phường Cầu Kiệu, TP.HCM
+
+**Thời gian làm việc:**
+
+* Sáng: 7:00 – 11:30 (vui lòng đến trước 9:00)
+* Chiều: 12:30 – 16:00 (vui lòng đến trước 14:00)
+* Làm việc từ Thứ 2 – Thứ 7 (Chủ nhật nghỉ)
+
+---
+
+**Một số lưu ý quan trọng trước khi khám** (vui lòng đọc kỹ để đảm bảo kết quả chính xác):
+
+* **Trước khi lấy máu:**
+  * Nhịn ăn trong vòng 8 tiếng, chỉ uống nước lọc tinh khiết (không uống cà phê, trà, rượu, sữa, nước ngọt…).
+  * Thư giãn, tránh lo lắng khi lấy máu.
+  * Nếu sau 5 phút lấy máu vẫn chảy máu, hãy báo nhân viên y tế.
+* **Lấy nước tiểu:**
+  * Bỏ nước tiểu đầu dòng, lấy phần giữa dòng.
+  * Nữ giới không lấy mẫu nước tiểu khi đang trong chu kỳ kinh nguyệt, nên lấy sau khi kết thúc 3 ngày.
+* **Khi thực hiện khám:**
+  * Có thắc mắc về sức khỏe, nhân viên sẽ hỗ trợ trao đổi với bác sĩ.
+  * Siêu âm bụng: Uống nhiều nước, nhịn tiểu cho đến khi siêu âm xong.
+  * Nữ mang thai/ nghi ngờ có thai không chụp X-quang.
+* **Nếu có danh mục chưa thực hiện hoặc không thể thực hiện**, vui lòng thông báo cho nhân viên y tế tại quầy tiếp nhận.
+
+---
+
+Mọi thắc mắc vui lòng liên hệ hotline: **0901 840 678**
+
+Chúc bạn có một buổi khám sức khỏe thuận lợi!
+
+Trân trọng,
+Hoàn Mỹ Gold – PXL`;
+}
+
+function sendEmailNotification(formData, rowId) {
+    try {
+        const emailConfig = currentConfig.emailNotification;
+        
+        // Prepare email data with form information
+        const emailData = {
+            to: getFormValue(formData, 'q_email') || '',
+            subject: emailConfig.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG',
+            template: emailConfig.template || getDefaultEmailTemplate(),
+            senderEmail: emailConfig.senderEmail || '',
+            formData: formData,
+            rowId: rowId
+        };
+        
+        // Replace template variables with actual form data
+        emailData.body = replaceTemplateVariables(emailData.template, formData);
+        
+        console.log('Sending email notification:', emailData);
+        
+        // Call Google Apps Script function to send email
+        google.script.run
+            .withSuccessHandler(function(result) {
+                console.log('Email sent successfully:', result);
+            })
+            .withFailureHandler(function(error) {
+                console.error('Failed to send email:', error);
+                // Don't show error to user as form submission was successful
+            })
+            .sendEmailNotification(emailData);
+            
+    } catch (error) {
+        console.error('Error preparing email notification:', error);
+    }
+}
+
+function replaceTemplateVariables(template, formData) {
+    let body = template;
+    
+    // Replace common variables
+    const replacements = {
+        '{customerName}': getFormValue(formData, 'q_full_name') || getFormValue(formData, 'q_1') || 'Khách hàng',
+        '{customerEmail}': getFormValue(formData, 'q_email') || '',
+        '{customerPhone}': getFormValue(formData, 'q_phone') || '',
+        '{customerBirthDate}': getFormValue(formData, 'q_birth_date') || '',
+        '{customerGender}': getFormValue(formData, 'q_gender') || '',
+        '{customerMaritalStatus}': getFormValue(formData, 'q_marital_status') || '',
+        '{appointmentDate}': getFormValue(formData, 'q_appointment_date') || '',
+        '{appointmentSession}': getFormValue(formData, 'q_appointment_session') || '',
+        '{companyName}': getFormValue(formData, 'q_company') || getFormValue(formData, 'q_2') || 'Công ty'
+    };
+    
+    // Replace all variables in template
+    for (const [variable, value] of Object.entries(replacements)) {
+        body = body.replace(new RegExp(variable.replace(/[{}]/g, '\\$&'), 'g'), value);
+    }
+    
+    return body;
+}
+
+function getFormValue(formData, fieldName) {
+    const field = formData.find(item => item.name === fieldName);
+    return field ? field.value : '';
 }
 
 // Form submission handling
@@ -1838,6 +1982,11 @@ function saveFormData(formData) {
             
             if (result.success) {
                 document.getElementById('successMessage').style.display = 'flex';
+                
+                // Send email notification if enabled
+                if (currentConfig && currentConfig.emailNotification && currentConfig.emailNotification.enabled) {
+                    sendEmailNotification(formData, result.rowId);
+                }
             } else {
                 alert('Lỗi: ' + (result.error || 'Không thể lưu dữ liệu.'));
             }
