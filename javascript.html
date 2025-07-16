@@ -1892,25 +1892,87 @@ function replaceTemplateVariables(template, formData) {
     function findFormValueByQuestion(characteristics) {
         if (!currentConfig || !currentConfig.questionGroups) return '';
         
+        // Tạo danh sách ứng viên với điểm số
+        const candidates = [];
+        
         for (const group of currentConfig.questionGroups) {
             for (const question of group.questions) {
                 const title = (question.title || '').toLowerCase();
                 const type = question.type || '';
+                let score = 0;
                 
-                // Check if question matches any of the characteristics
+                // Tính điểm dựa trên độ khớp với characteristics
                 for (const char of characteristics) {
-                    if (type === char || title.includes(char)) {
-                        return formData[question.id] || '';
+                    if (type === char) {
+                        score += 10; // Type match có điểm cao
+                    } else if (title.includes(char)) {
+                        // Kiểm tra độ chính xác của match trong title
+                        const words = title.split(/\s+/);
+                        const exactMatch = words.some(word => word === char);
+                        if (exactMatch) {
+                            score += 5; // Exact word match
+                        } else {
+                            score += 1; // Partial match
+                        }
                     }
+                }
+                
+                if (score > 0) {
+                    candidates.push({
+                        question: question,
+                        score: score,
+                        value: formData[question.id] || ''
+                    });
                 }
             }
         }
+        
+        // Sắp xếp theo điểm số giảm dần và trả về giá trị của ứng viên tốt nhất
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => b.score - a.score);
+            return candidates[0].value;
+        }
+        
         return '';
     }
     
+    // Tìm customerName - ưu tiên trường có "họ" và "tên" nhưng KHÔNG có "công ty"
+    function findCustomerName() {
+        if (!currentConfig || !currentConfig.questionGroups) return getFormValue(formData, 'q_1') || 'Khách hàng';
+        
+        for (const group of currentConfig.questionGroups) {
+            for (const question of group.questions) {
+                const title = (question.title || '').toLowerCase();
+                // Tìm trường có "họ" hoặc "tên" nhưng KHÔNG có "công ty"
+                if ((title.includes('họ') || title.includes('tên') || title.includes('name')) && 
+                    !title.includes('công ty') && !title.includes('company')) {
+                    return formData[question.id] || '';
+                }
+            }
+        }
+        return getFormValue(formData, 'q_1') || 'Khách hàng';
+    }
+    
+    // Tìm companyName - ưu tiên trường có "công ty" hoặc "company"
+    function findCompanyName() {
+        if (!currentConfig || !currentConfig.questionGroups) return getFormValue(formData, 'q_2') || 'Công ty';
+        
+        for (const group of currentConfig.questionGroups) {
+            for (const question of group.questions) {
+                const title = (question.title || '').toLowerCase();
+                // Tìm trường có "công ty" hoặc "company"
+                if (title.includes('công ty') || title.includes('company')) {
+                    return formData[question.id] || '';
+                }
+            }
+        }
+        return getFormValue(formData, 'q_2') || 'Công ty';
+    }
+
     // Replace common variables
     const replacements = {
-        '{customerName}': findFormValueByQuestion(['tên', 'name', 'họ']) || getFormValue(formData, 'q_1') || 'Khách hàng',
+        // Sử dụng hàm tìm kiếm chuyên biệt cho customerName và companyName
+        '{customerName}': findCustomerName(),
         '{email}': findFormValueByQuestion(['email']) || '',
         '{customerEmail}': findFormValueByQuestion(['email']) || '',
         '{phone}': findFormValueByQuestion(['phone', 'điện thoại', 'số điện thoại']) || '',
@@ -1924,8 +1986,17 @@ function replaceTemplateVariables(template, formData) {
         '{appointmentDate}': findFormValueByQuestion(['ngày khám', 'appointment', 'khám']) || '',
         '{session}': findFormValueByQuestion(['buổi khám', 'session', 'buổi']) || '',
         '{appointmentSession}': findFormValueByQuestion(['buổi khám', 'session', 'buổi']) || '',
-        '{companyName}': findFormValueByQuestion(['công ty', 'company']) || getFormValue(formData, 'q_2') || 'Công ty'
+        '{companyName}': findCompanyName()
     };
+    
+    // Debug logging để kiểm tra mapping
+    console.log('=== EMAIL TEMPLATE VARIABLE MAPPING ===');
+    console.log('Form Data:', formData);
+    console.log('Variable Replacements:');
+    for (const [variable, value] of Object.entries(replacements)) {
+        console.log(`${variable}: "${value}"`);
+    }
+    console.log('=========================================');
     
     // Replace all variables in template
     for (const [variable, value] of Object.entries(replacements)) {
