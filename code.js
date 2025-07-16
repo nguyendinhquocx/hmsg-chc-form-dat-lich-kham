@@ -121,12 +121,21 @@ function createDefaultConfig() {
             placeholder: "Nhập tên công ty"
           },
           {
+            id: "q_email",
+            title: "Email liên hệ",
+            icon: "fas fa-envelope",
+            type: "email",
+            required: true,
+            order: 3,
+            placeholder: "Nhập địa chỉ email"
+          },
+          {
             id: "q_appointment_date",
             title: "Ngày khám",
             icon: "fas fa-calendar",
             type: "date",
             required: true,
-            order: 3,
+            order: 4,
             placeholder: "Chọn ngày khám"
           },
           {
@@ -135,7 +144,7 @@ function createDefaultConfig() {
             icon: "fas fa-clock",
             type: "radio",
             required: true,
-            order: 4,
+            order: 5,
             options: [
               { value: "morning", label: "Buổi sáng" },
               { value: "afternoon", label: "Buổi chiều" }

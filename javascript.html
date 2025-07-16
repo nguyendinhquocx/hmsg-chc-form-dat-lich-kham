@@ -641,6 +641,7 @@ function generateQuestionElement(question) {
         case 'text':
         case 'number':
         case 'date':
+        case 'email':
             inputElement = document.createElement('input');
             inputElement.type = question.type;
             inputElement.id = question.id;
@@ -1055,6 +1056,7 @@ function getQuestionTypeLabel(type) {
     const labels = {
         'text': 'Văn bản',
         'textarea': 'Văn bản dài',
+        'email': 'Email',
         'radio': 'Lựa chọn đơn',
         'checkbox': 'Lựa chọn nhiều',
         'select': 'Dropdown',
@@ -1634,7 +1636,16 @@ function saveConfiguration() {
         startDate: document.getElementById('appointmentStartDate').value,
         endDate: document.getElementById('appointmentEndDate').value,
         morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
-        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15
+        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15,
+        allowSunday: document.getElementById('allowSunday').checked
+    };
+    
+    // Update email notification configuration
+    currentConfig.emailNotification = {
+        enabled: document.getElementById('emailNotificationEnabled').checked,
+        subject: document.getElementById('emailSubject').value,
+        template: document.getElementById('emailTemplate').value,
+        senderEmail: document.getElementById('senderEmail').value
     };
     
     document.getElementById('loadingOverlay').style.display = 'flex';
@@ -1832,6 +1843,11 @@ function sendEmailNotification(formData, rowId) {
     try {
         const emailConfig = currentConfig.emailNotification;
         
+        console.log('=== EMAIL DEBUG ===');
+        console.log('Email config:', emailConfig);
+        console.log('Form data:', formData);
+        console.log('Email from form:', getFormValue(formData, 'q_email'));
+        
         // Prepare email data with form information
         const emailData = {
             to: getFormValue(formData, 'q_email') || '',
@@ -1845,12 +1861,18 @@ function sendEmailNotification(formData, rowId) {
         // Replace template variables with actual form data
         emailData.body = replaceTemplateVariables(emailData.template, formData);
         
-        console.log('Sending email notification:', emailData);
+        console.log('Prepared email data:', emailData);
+        console.log('Email recipient:', emailData.to);
+        console.log('Email subject:', emailData.subject);
+        console.log('Email body length:', emailData.body ? emailData.body.length : 0);
         
         // Call Google Apps Script function to send email
         google.script.run
             .withSuccessHandler(function(result) {
                 console.log('Email sent successfully:', result);
+                if (result && !result.success) {
+                    console.error('Email sending failed:', result.error);
+                }
             })
             .withFailureHandler(function(error) {
                 console.error('Failed to send email:', error);
@@ -1866,17 +1888,43 @@ function sendEmailNotification(formData, rowId) {
 function replaceTemplateVariables(template, formData) {
     let body = template;
     
+    // Helper function to find form value by question characteristics
+    function findFormValueByQuestion(characteristics) {
+        if (!currentConfig || !currentConfig.questionGroups) return '';
+        
+        for (const group of currentConfig.questionGroups) {
+            for (const question of group.questions) {
+                const title = (question.title || '').toLowerCase();
+                const type = question.type || '';
+                
+                // Check if question matches any of the characteristics
+                for (const char of characteristics) {
+                    if (type === char || title.includes(char)) {
+                        return formData[question.id] || '';
+                    }
+                }
+            }
+        }
+        return '';
+    }
+    
     // Replace common variables
     const replacements = {
-        '{customerName}': getFormValue(formData, 'q_full_name') || getFormValue(formData, 'q_1') || 'Khách hàng',
-        '{customerEmail}': getFormValue(formData, 'q_email') || '',
-        '{customerPhone}': getFormValue(formData, 'q_phone') || '',
-        '{customerBirthDate}': getFormValue(formData, 'q_birth_date') || '',
-        '{customerGender}': getFormValue(formData, 'q_gender') || '',
-        '{customerMaritalStatus}': getFormValue(formData, 'q_marital_status') || '',
-        '{appointmentDate}': getFormValue(formData, 'q_appointment_date') || '',
-        '{appointmentSession}': getFormValue(formData, 'q_appointment_session') || '',
-        '{companyName}': getFormValue(formData, 'q_company') || getFormValue(formData, 'q_2') || 'Công ty'
+        '{customerName}': findFormValueByQuestion(['tên', 'name', 'họ']) || getFormValue(formData, 'q_1') || 'Khách hàng',
+        '{email}': findFormValueByQuestion(['email']) || '',
+        '{customerEmail}': findFormValueByQuestion(['email']) || '',
+        '{phone}': findFormValueByQuestion(['phone', 'điện thoại', 'số điện thoại']) || '',
+        '{customerPhone}': findFormValueByQuestion(['phone', 'điện thoại', 'số điện thoại']) || '',
+        '{birthDate}': findFormValueByQuestion(['sinh', 'birth', 'ngày sinh']) || '',
+        '{customerBirthDate}': findFormValueByQuestion(['sinh', 'birth', 'ngày sinh']) || '',
+        '{gender}': findFormValueByQuestion(['giới tính', 'gender']) || '',
+        '{customerGender}': findFormValueByQuestion(['giới tính', 'gender']) || '',
+        '{maritalStatus}': findFormValueByQuestion(['hôn nhân', 'marital', 'tình trạng']) || '',
+        '{customerMaritalStatus}': findFormValueByQuestion(['hôn nhân', 'marital', 'tình trạng']) || '',
+        '{appointmentDate}': findFormValueByQuestion(['ngày khám', 'appointment', 'khám']) || '',
+        '{session}': findFormValueByQuestion(['buổi khám', 'session', 'buổi']) || '',
+        '{appointmentSession}': findFormValueByQuestion(['buổi khám', 'session', 'buổi']) || '',
+        '{companyName}': findFormValueByQuestion(['công ty', 'company']) || getFormValue(formData, 'q_2') || 'Công ty'
     };
     
     // Replace all variables in template
@@ -1888,8 +1936,30 @@ function replaceTemplateVariables(template, formData) {
 }
 
 function getFormValue(formData, fieldName) {
-    const field = formData.find(item => item.name === fieldName);
-    return field ? field.value : '';
+    // Handle both object and array formats
+    if (Array.isArray(formData)) {
+        const field = formData.find(item => item.name === fieldName);
+        return field ? field.value : '';
+    } else {
+        // Handle object format from collectFormData
+        if (formData[fieldName]) {
+            return formData[fieldName];
+        }
+        
+        // If fieldName is 'q_email', try to find email field by checking question config
+        if (fieldName === 'q_email' && currentConfig && currentConfig.questionGroups) {
+            for (const group of currentConfig.questionGroups) {
+                for (const question of group.questions) {
+                    if (question.type === 'email' || 
+                        (question.title && question.title.toLowerCase().includes('email'))) {
+                        return formData[question.id] || '';
+                    }
+                }
+            }
+        }
+        
+        return '';
+    }
 }
 
 // Form submission handling
