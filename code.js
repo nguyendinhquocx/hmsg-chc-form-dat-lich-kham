@@ -1002,7 +1002,7 @@ function sendEmailNotification(emailData) {
       to: emailData.to,
       subject: emailData.subject,
       htmlBody: emailData.body.replace(/\n/g, '<br>'),
-      name: 'HMSG Health Check System'
+      name: emailData.senderName || 'HMSG Health Check System'
     };
     
     // If sender email is specified, use it as reply-to

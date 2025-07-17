@@ -953,6 +953,7 @@ function loadAdminConfiguration() {
     document.getElementById('emailSubject').value = emailNotification.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG';
     document.getElementById('emailTemplate').value = emailNotification.template || getDefaultEmailTemplate();
     document.getElementById('senderEmail').value = emailNotification.senderEmail || '';
+    document.getElementById('senderName').value = emailNotification.senderName || 'HMSG Health Check System';
     
     // Show/hide email notification config based on checkbox
     toggleEmailNotificationConfig();
@@ -1777,7 +1778,8 @@ function saveConfiguration() {
         enabled: document.getElementById('emailNotificationEnabled').checked,
         subject: document.getElementById('emailSubject').value,
         template: document.getElementById('emailTemplate').value,
-        senderEmail: document.getElementById('senderEmail').value
+        senderEmail: document.getElementById('senderEmail').value,
+        senderName: document.getElementById('senderName').value
     };
     
     document.getElementById('loadingOverlay').style.display = 'flex';
@@ -1899,7 +1901,8 @@ function saveConfigToMemory() {
         enabled: document.getElementById('emailNotificationEnabled').checked,
         subject: document.getElementById('emailSubject').value,
         template: document.getElementById('emailTemplate').value,
-        senderEmail: document.getElementById('senderEmail').value
+        senderEmail: document.getElementById('senderEmail').value,
+        senderName: document.getElementById('senderName').value
     };
     
     // Đã xóa bỏ việc cập nhật màu wave
@@ -1986,6 +1989,7 @@ function sendEmailNotification(formData, rowId) {
             subject: emailConfig.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG',
             template: emailConfig.template || getDefaultEmailTemplate(),
             senderEmail: emailConfig.senderEmail || '',
+            senderName: emailConfig.senderName || 'HMSG Health Check System',
             formData: formData,
             rowId: rowId
         };
