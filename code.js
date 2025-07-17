@@ -432,6 +432,27 @@ function uploadImages(imageBlobsJson, customerName, uniqueId) {
   return results;
 }
 
+// Tự động sinh biến email từ tiêu đề
+function generateEmailVariable(title) {
+  if (!title) return '';
+  
+  // Tự động sinh từ tiêu đề: loại bỏ dấu, khoảng trắng, chuyển thành camelCase
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu tiếng Việt
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9\s]/g, '') // Loại bỏ ký tự đặc biệt
+    .replace(/\s+/g, ' ') // Chuẩn hóa khoảng trắng
+    .trim()
+    .split(' ')
+    .map((word, index) => {
+      if (index === 0) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join('');
+}
+
 // Check appointment availability
 function checkAppointmentAvailability(selectedDate, selectedSession) {
   try {
@@ -446,16 +467,32 @@ function checkAppointmentAvailability(selectedDate, selectedSession) {
     }
     
     const limits = config.appointmentLimits;
-    const selected = new Date(selectedDate);
-    const startDate = new Date(limits.startDate);
-    const endDate = new Date(limits.endDate);
     
-    // Kiểm tra ngày có trong khoảng cho phép không
-    if (selected < startDate || selected > endDate) {
-      return {
-        available: false,
-        message: `Chỉ có thể đăng ký từ ${formatDate(startDate)} đến ${formatDate(endDate)}`
-      };
+    // Kiểm tra ngày chủ nhật nếu không được phép
+    if (!limits.allowSunday) {
+      const selected = new Date(selectedDate);
+      if (selected.getDay() === 0) { // 0 = Chủ nhật
+        console.log('Sunday not allowed');
+        return {
+          available: false,
+          message: 'Chủ nhật không được phép đặt lịch khám. Vui lòng chọn ngày khác.'
+        };
+      }
+    }
+    
+    // Nếu có cấu hình ngày bắt đầu và kết thúc cố định
+    if (limits.startDate && limits.endDate) {
+      const selected = new Date(selectedDate);
+      const startDate = new Date(limits.startDate);
+      const endDate = new Date(limits.endDate);
+      
+      // Kiểm tra ngày có trong khoảng cho phép không
+      if (selected < startDate || selected > endDate) {
+        return {
+          available: false,
+          message: `Chỉ có thể đăng ký từ ${formatDate(startDate)} đến ${formatDate(endDate)}`
+        };
+      }
     }
     
     // Chuẩn hóa session value trước khi xử lý
@@ -521,14 +558,37 @@ function getAppointmentCount(selectedDate, selectedSession) {
     let dateColumnIndex = -1;
     let sessionColumnIndex = -1;
     
-    // Tìm các cột có chứa từ khóa liên quan đến ngày và buổi
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i].toLowerCase();
-      if (header.includes('ngày') && header.includes('khám')) {
-        dateColumnIndex = i;
+    // Nếu có cấu hình biến ngày tháng và buổi khám, tìm cột dựa trên tiêu đề
+    if (config.appointmentLimits && config.appointmentLimits.dateVariable && config.appointmentLimits.sessionVariable) {
+      // Tìm cột dựa trên biến đã cấu hình
+      for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const headerVariable = generateEmailVariable(header);
+        
+        // So sánh biến được tạo từ tiêu đề cột với biến đã cấu hình
+        if (headerVariable === config.appointmentLimits.dateVariable) {
+          dateColumnIndex = i;
+          console.log(`Found date column by variable: ${header} (${i})`);
+        }
+        if (headerVariable === config.appointmentLimits.sessionVariable) {
+          sessionColumnIndex = i;
+          console.log(`Found session column by variable: ${header} (${i})`);
+        }
       }
-      if (header.includes('buổi') && header.includes('khám')) {
-        sessionColumnIndex = i;
+    }
+    
+    // Nếu không tìm thấy bằng biến, sử dụng cách tìm kiếm cũ
+    if (dateColumnIndex === -1 || sessionColumnIndex === -1) {
+      for (let i = 0; i < headers.length; i++) {
+        const header = headers[i].toLowerCase();
+        if (dateColumnIndex === -1 && header.includes('ngày') && header.includes('khám')) {
+          dateColumnIndex = i;
+          console.log(`Found date column by keyword: ${headers[i]} (${i})`);
+        }
+        if (sessionColumnIndex === -1 && header.includes('buổi') && header.includes('khám')) {
+          sessionColumnIndex = i;
+          console.log(`Found session column by keyword: ${headers[i]} (${i})`);
+        }
       }
     }
     
@@ -611,21 +671,45 @@ function validateAndSaveFormData(formData) {
     const config = getConfig();
     
     // Tìm câu hỏi về ngày khám và buổi khám
-    config.questionGroups.forEach(group => {
-      group.questions.forEach(question => {
-        const questionTitle = question.title.toLowerCase();
-        console.log(`Checking question: "${question.title}" (${question.id})`);
-        
-        if (questionTitle.includes('ngày') && questionTitle.includes('khám')) {
-          selectedDate = formData[question.id];
-          console.log(`Found date question: ${question.title} = ${selectedDate}`);
-        }
-        if (questionTitle.includes('buổi') && questionTitle.includes('khám')) {
-          selectedSession = formData[question.id];
-          console.log(`Found session question: ${question.title} = ${selectedSession}`);
-        }
+    if (config.appointmentLimits && config.appointmentLimits.dateVariable) {
+      // Tìm câu hỏi dựa trên biến đã cấu hình
+      config.questionGroups.forEach(group => {
+        group.questions.forEach(question => {
+          const questionVariable = question.emailVariable || generateEmailVariable(question.title);
+          
+          // Kiểm tra biến ngày tháng
+          if (questionVariable === config.appointmentLimits.dateVariable) {
+            selectedDate = formData[question.id];
+            console.log(`Found date question by variable: ${question.title} = ${selectedDate}`);
+          }
+          
+          // Kiểm tra biến buổi khám
+          if (questionVariable === config.appointmentLimits.sessionVariable) {
+            selectedSession = formData[question.id];
+            console.log(`Found session question by variable: ${question.title} = ${selectedSession}`);
+          }
+        });
       });
-    });
+    }
+    
+    // Nếu không tìm thấy bằng biến, sử dụng cách tìm kiếm cũ
+    if (!selectedDate || !selectedSession) {
+      config.questionGroups.forEach(group => {
+        group.questions.forEach(question => {
+          const questionTitle = question.title.toLowerCase();
+          console.log(`Checking question: "${question.title}" (${question.id})`);
+          
+          if (!selectedDate && questionTitle.includes('ngày') && questionTitle.includes('khám')) {
+            selectedDate = formData[question.id];
+            console.log(`Found date question: ${question.title} = ${selectedDate}`);
+          }
+          if (!selectedSession && questionTitle.includes('buổi') && questionTitle.includes('khám')) {
+            selectedSession = formData[question.id];
+            console.log(`Found session question: ${question.title} = ${selectedSession}`);
+          }
+        });
+      });
+    }
     
     console.log('Final values - selectedDate:', selectedDate, 'selectedSession:', selectedSession);
     
@@ -1002,7 +1086,7 @@ function sendEmailNotification(emailData) {
       to: emailData.to,
       subject: emailData.subject,
       htmlBody: emailData.body.replace(/\n/g, '<br>'),
-      name: emailData.senderName || 'HMSG Health Check System'
+      name: emailData.senderName || 'Nguyen Dinh Quoc'
     };
     
     // If sender email is specified, use it as reply-to

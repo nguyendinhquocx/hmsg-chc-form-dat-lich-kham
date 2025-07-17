@@ -145,12 +145,12 @@
 
             <!-- Appointment Limits Configuration -->
             <div class="config-section">
-                <h3><i class="fas fa-calendar-check"></i> Cấu hình giới hạn lịch khám</h3>
+                <h3><i class="fas fa-calendar-check"></i> Cấu hình giới hạn lịch</h3>
                 <div class="config-content">
                     <div class="form-group">
                         <label>
                             <input type="checkbox" id="appointmentLimitsEnabled"> 
-                            Bật giới hạn lịch khám
+                            Bật giới hạn lịch
                         </label>
                     </div>
                     
@@ -168,12 +168,34 @@
                         
                         <div class="sheet-row">
                             <div class="form-group">
-                                <label>Giới hạn buổi sáng</label>
+                                <label>Biến ngày tháng</label>
+                                <select id="appointmentDateVariable">
+                                    <option value="">-- Chọn biến ngày tháng --</option>
+                                    <!-- Các biến sẽ được tạo động -->
+                                </select>
+                                <small class="help-text">Chọn biến từ câu hỏi kiểu ngày tháng</small>
+                            </div>
+                        </div>
+                        
+                        <div class="sheet-row">
+                            <div class="form-group">
+                                <label>Giới hạn lựa chọn đơn</label>
                                 <input type="number" id="morningLimit" min="1" placeholder="10">
                             </div>
                             <div class="form-group">
-                                <label>Giới hạn buổi chiều</label>
+                                <label>Giới hạn lựa chọn đơn</label>
                                 <input type="number" id="afternoonLimit" min="1" placeholder="15">
+                            </div>
+                        </div>
+                        
+                        <div class="sheet-row">
+                            <div class="form-group">
+                                <label>Biến lựa chọn đơn</label>
+                                <select id="appointmentSessionVariable">
+                                    <option value="">-- Chọn biến lựa chọn đơn --</option>
+                                    <!-- Các biến sẽ được tạo động -->
+                                </select>
+                                <small class="help-text">Chọn biến từ câu hỏi kiểu lựa chọn (radio, select)</small>
                             </div>
                         </div>
                         
@@ -275,13 +297,13 @@ Hoàn Mỹ Gold – PXL
                         
                         <div class="form-group">
                             <label>Email gửi từ (tùy chọn)</label>
-                            <input type="email" id="senderEmail" placeholder="noreply@hmsg.vn">
+                            <input type="email" id="senderEmail" placeholder="quocnguyent10v@gmail.com">
                             <small class="help-text">Để trống để sử dụng email mặc định của Google Apps Script</small>
                         </div>
                         
                         <div class="form-group">
                             <label>Tên người gửi (tùy chọn)</label>
-                            <input type="text" id="senderName" placeholder="HMSG Health Check System">
+                            <input type="text" id="senderName" placeholder="Nguyen Dinh Quoc">
                             <small class="help-text">Để trống để sử dụng tên mặc định</small>
                         </div>
                     </div>

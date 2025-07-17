@@ -941,6 +941,25 @@ function loadAdminConfiguration() {
     document.getElementById('afternoonLimit').value = appointmentLimits.afternoonLimit || 15;
     document.getElementById('allowSunday').checked = appointmentLimits.allowSunday || false;
     
+    // Populate variable dropdowns
+    populateAppointmentVariables();
+    
+    // Set selected variables if they exist (after a small delay to ensure dropdowns are populated)
+    setTimeout(() => {
+        if (appointmentLimits.dateVariable) {
+            const dateSelect = document.getElementById('appointmentDateVariable');
+            if (dateSelect) {
+                dateSelect.value = appointmentLimits.dateVariable;
+            }
+        }
+        if (appointmentLimits.sessionVariable) {
+            const sessionSelect = document.getElementById('appointmentSessionVariable');
+            if (sessionSelect) {
+                sessionSelect.value = appointmentLimits.sessionVariable;
+            }
+        }
+    }, 100);
+    
     // Show/hide appointment limits config based on checkbox
     toggleAppointmentLimitsConfig();
     
@@ -953,7 +972,7 @@ function loadAdminConfiguration() {
     document.getElementById('emailSubject').value = emailNotification.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG';
     document.getElementById('emailTemplate').value = emailNotification.template || getDefaultEmailTemplate();
     document.getElementById('senderEmail').value = emailNotification.senderEmail || '';
-    document.getElementById('senderName').value = emailNotification.senderName || 'HMSG Health Check System';
+    document.getElementById('senderName').value = emailNotification.senderName || 'Nguyen Dinh Quoc';
     
     // Show/hide email notification config based on checkbox
     toggleEmailNotificationConfig();
@@ -1770,7 +1789,9 @@ function saveConfiguration() {
         endDate: document.getElementById('appointmentEndDate').value,
         morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
         afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15,
-        allowSunday: document.getElementById('allowSunday').checked
+        allowSunday: document.getElementById('allowSunday').checked,
+        dateVariable: document.getElementById('appointmentDateVariable').value,
+        sessionVariable: document.getElementById('appointmentSessionVariable').value
     };
     
     // Update email notification configuration
@@ -1893,7 +1914,9 @@ function saveConfigToMemory() {
         endDate: document.getElementById('appointmentEndDate').value,
         morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
         afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15,
-        allowSunday: document.getElementById('allowSunday').checked
+        allowSunday: document.getElementById('allowSunday').checked,
+        dateVariable: document.getElementById('appointmentDateVariable').value,
+        sessionVariable: document.getElementById('appointmentSessionVariable').value
     };
     
     // Update email notification configuration in memory
@@ -1919,6 +1942,73 @@ function toggleEmailNotificationConfig() {
     const enabled = document.getElementById('emailNotificationEnabled').checked;
     const configDiv = document.getElementById('emailNotificationConfig');
     configDiv.style.display = enabled ? 'block' : 'none';
+}
+
+function generateEmailVariable(title) {
+    if (!title) return '';
+    
+    // Tự động sinh từ tiêu đề: loại bỏ dấu, khoảng trắng, chuyển thành camelCase
+    return title
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu tiếng Việt
+        .replace(/đ/g, 'd')
+        .replace(/[^a-z0-9\s]/g, '') // Loại bỏ ký tự đặc biệt
+        .replace(/\s+/g, ' ') // Chuẩn hóa khoảng trắng
+        .trim()
+        .split(' ')
+        .map((word, index) => {
+            if (index === 0) return word;
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join('');
+}
+
+function populateAppointmentVariables() {
+    // Lấy các dropdown cần điền biến
+    const dateVariableSelect = document.getElementById('appointmentDateVariable');
+    const sessionVariableSelect = document.getElementById('appointmentSessionVariable');
+    
+    // Xóa các option hiện tại (trừ option mặc định đầu tiên)
+    while (dateVariableSelect.options.length > 1) {
+        dateVariableSelect.remove(1);
+    }
+    
+    while (sessionVariableSelect.options.length > 1) {
+        sessionVariableSelect.remove(1);
+    }
+    
+    // Nếu không có nhóm câu hỏi, thoát
+    if (!currentConfig.questionGroups || currentConfig.questionGroups.length === 0) {
+        return;
+    }
+    
+    // Duyệt qua tất cả các nhóm câu hỏi và câu hỏi
+    currentConfig.questionGroups.forEach(group => {
+        if (!group.questions || group.questions.length === 0) return;
+        
+        group.questions.forEach(question => {
+            // Tạo tên hiển thị cho biến
+            const displayName = `${group.title} - ${question.title}`;
+            const variableName = question.emailVariable || generateEmailVariable(question.title);
+            
+            // Thêm vào dropdown ngày tháng nếu là kiểu date
+            if (question.type === 'date') {
+                const option = document.createElement('option');
+                option.value = variableName;
+                option.textContent = displayName;
+                dateVariableSelect.appendChild(option);
+            }
+            
+            // Thêm vào dropdown buổi khám nếu là kiểu select, radio hoặc checkbox
+            if (['select', 'radio', 'checkbox'].includes(question.type)) {
+                const option = document.createElement('option');
+                option.value = variableName;
+                option.textContent = displayName;
+                sessionVariableSelect.appendChild(option);
+            }
+        });
+    });
 }
 
 function getDefaultEmailTemplate() {
@@ -1989,7 +2079,7 @@ function sendEmailNotification(formData, rowId) {
             subject: emailConfig.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG',
             template: emailConfig.template || getDefaultEmailTemplate(),
             senderEmail: emailConfig.senderEmail || '',
-            senderName: emailConfig.senderName || 'HMSG Health Check System',
+            senderName: emailConfig.senderName || 'Nguyen Dinh Quoc',
             formData: formData,
             rowId: rowId
         };
