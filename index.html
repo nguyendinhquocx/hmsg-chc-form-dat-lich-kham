@@ -177,15 +177,21 @@
                             </div>
                         </div>
                         
-                        <div class="sheet-row">
-                            <div class="form-group">
-                                <label>Giới hạn lựa chọn đơn</label>
-                                <input type="number" id="morningLimit" min="1" placeholder="10">
+                        <div class="form-group choice-limits-section">
+                            <label>Cấu hình giới hạn lựa chọn</label>
+                            <div id="choiceLimitsContainer">
+                                <div class="choice-limit-item">
+                                    <input type="text" placeholder="Tên lựa chọn (vd: Buổi sáng)" class="choice-name">
+                                    <input type="number" placeholder="Giới hạn" min="1" class="choice-limit">
+                                    <button type="button" onclick="removeChoiceLimit(this)" class="btn-icon btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Giới hạn lựa chọn đơn</label>
-                                <input type="number" id="afternoonLimit" min="1" placeholder="15">
-                            </div>
+                            <button type="button" onclick="addChoiceLimit()" class="btn btn-secondary">
+                                <i class="fas fa-plus"></i> Thêm giới hạn lựa chọn
+                            </button>
+                            <small class="help-text">Cấu hình giới hạn cho từng giá trị lựa chọn cụ thể</small>
                         </div>
                         
                         <div class="sheet-row">

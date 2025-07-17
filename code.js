@@ -90,8 +90,10 @@ function createDefaultConfig() {
       enabled: false,
       startDate: "2025-07-26",
       endDate: "2025-08-10",
-      morningLimit: 10,
-      afternoonLimit: 15,
+      choiceLimits: [
+        { name: "Buổi sáng", limit: 10 },
+        { name: "Buổi chiều", limit: 15 }
+      ],
       allowSunday: false  // Cho phép đặt lịch vào chủ nhật
     },
     questionGroups: [
@@ -232,6 +234,9 @@ function updateSheetHeaders() {
 // Save configuration to sheet
 function saveConfig(config) {
   try {
+    console.log('=== DEBUG saveConfig ===');
+    console.log('Received config:', JSON.stringify(config, null, 2));
+    
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let configSheet = ss.getSheetByName('Cấu hình');
     
@@ -257,6 +262,7 @@ function saveConfig(config) {
       configSheet.getRange(2, 2, 1, 2).setValues([[configJson, timestamp]]);
     }
     
+    console.log('Config saved successfully to sheet');
     return { success: true, message: 'Cấu hình đã được lưu thành công!' };
   } catch (error) {
     console.error('Error saving config:', error);
@@ -499,16 +505,57 @@ function checkAppointmentAvailability(selectedDate, selectedSession) {
     const normalizedSession = normalizeSessionValue(selectedSession);
     console.log('Normalized session:', normalizedSession);
     
-    // Đếm số lượng đăng ký hiện tại cho ngày và buổi đã chọn
-    const count = getAppointmentCount(selectedDate, normalizedSession);
-    const limit = normalizedSession === 'morning' ? limits.morningLimit : limits.afternoonLimit;
+    // Đếm số lượng đăng ký hiện tại cho ngày và lựa chọn đã chọn
+    const count = getAppointmentCount(selectedDate, selectedSession);
     
-    console.log(`Checking availability: Date=${selectedDate}, NormalizedSession=${normalizedSession}, Count=${count}, Limit=${limit}`);
+    // Tìm giới hạn cho lựa chọn này từ choiceLimits
+    let limit = null;
+    let choiceName = selectedSession;
+    
+    if (limits.choiceLimits && limits.choiceLimits.length > 0) {
+      // Tìm giới hạn dựa trên tên lựa chọn
+      const choiceLimit = limits.choiceLimits.find(choice => {
+        const normalizedChoiceName = choice.name.toLowerCase().trim();
+        const normalizedSelectedSession = selectedSession.toLowerCase().trim();
+        return normalizedChoiceName === normalizedSelectedSession || 
+               normalizedChoiceName === normalizeSessionValue(selectedSession) ||
+               normalizeSessionValue(choice.name) === normalizeSessionValue(selectedSession);
+      });
+      
+      if (choiceLimit) {
+        limit = choiceLimit.limit;
+        choiceName = choiceLimit.name;
+      }
+    }
+    
+    // If no specific choice limit found, try to find by normalized session value
+    if (limit === null && limits.choiceLimits) {
+      const normalizedSession = normalizeSessionValue(selectedSession);
+      const fallbackChoice = limits.choiceLimits.find(choice => {
+        const normalizedChoiceName = normalizeSessionValue(choice.name);
+        return normalizedChoiceName === normalizedSession;
+      });
+      
+      if (fallbackChoice) {
+        limit = fallbackChoice.limit;
+        choiceName = fallbackChoice.name;
+      }
+    }
+    
+    console.log(`Checking availability: Date=${selectedDate}, Session=${selectedSession}, Count=${count}, Limit=${limit}, ChoiceName=${choiceName}`);
+    
+    // Nếu không tìm thấy giới hạn nào, cho phép đăng ký
+    if (limit === null || limit === undefined) {
+      console.log('No limit found for this choice, allowing registration');
+      return {
+        available: true,
+        message: `Lựa chọn "${selectedSession}" không có giới hạn`
+      };
+    }
     
     if (count >= limit) {
       console.log('Appointment not available - limit exceeded');
-      const sessionText = normalizedSession === 'morning' ? 'sáng' : 'chiều';
-      const message = `Buổi ${sessionText} ngày ${formatDate(selected)} đã đủ ${limit} người. Vui lòng chọn ngày hoặc buổi khác.`;
+      const message = `Lựa chọn "${choiceName}" ngày ${formatDate(new Date(selectedDate))} đã đủ ${limit} người. Vui lòng chọn ngày hoặc lựa chọn khác.`;
       console.log('Generated error message:', message);
       return {
         available: false,
@@ -517,10 +564,9 @@ function checkAppointmentAvailability(selectedDate, selectedSession) {
     }
     
     console.log('Appointment available');
-    const sessionText = normalizedSession === 'morning' ? 'sáng' : 'chiều';
     return {
       available: true,
-      message: `Còn ${limit - count} chỗ cho buổi ${sessionText} ngày ${formatDate(selected)}`
+      message: `Còn ${limit - count} chỗ cho lựa chọn "${choiceName}" ngày ${formatDate(new Date(selectedDate))}`
     };
     
   } catch (error) {
@@ -612,16 +658,33 @@ function getAppointmentCount(selectedDate, selectedSession) {
       const rowDate = new Date(data[i][dateColumnIndex]).toDateString();
       const rowSession = data[i][sessionColumnIndex];
       
-      // Chuẩn hóa giá trị buổi khám để so sánh
-      const normalizedRowSession = normalizeSessionValue(rowSession);
-      const normalizedSelectedSession = normalizeSessionValue(selectedSession);
+      // So sánh giá trị lựa chọn - thử nhiều cách so sánh
+      const rowSessionStr = rowSession ? rowSession.toString().trim() : '';
+      const selectedSessionStr = selectedSession ? selectedSession.toString().trim() : '';
       
       // Debug logging
       if (rowDate === targetDate) {
-        console.log(`Row ${i}: Date match - Original session: '${rowSession}', Normalized: '${normalizedRowSession}', Target: '${normalizedSelectedSession}'`);
+        console.log(`Row ${i}: Date match - Original session: '${rowSession}', Target: '${selectedSession}'`);
       }
       
-      if (rowDate === targetDate && normalizedRowSession === normalizedSelectedSession) {
+      // So sánh trực tiếp trước
+      let sessionMatch = false;
+      
+      // 1. So sánh trực tiếp (case-insensitive)
+      if (rowSessionStr.toLowerCase() === selectedSessionStr.toLowerCase()) {
+        sessionMatch = true;
+      }
+      
+      // 2. So sánh sau khi chuẩn hóa (cho backward compatibility)
+      if (!sessionMatch) {
+        const normalizedRowSession = normalizeSessionValue(rowSession);
+        const normalizedSelectedSession = normalizeSessionValue(selectedSession);
+        if (normalizedRowSession === normalizedSelectedSession) {
+          sessionMatch = true;
+        }
+      }
+      
+      if (rowDate === targetDate && sessionMatch) {
         count++;
         console.log(`Match found! Count: ${count}`);
       }
@@ -943,8 +1006,12 @@ function debugSpecificIssue() {
   console.log('\n4. Configuration check:');
   const config = getConfig();
   if (config.appointmentLimits) {
-    console.log('Morning limit:', config.appointmentLimits.morningLimit);
-    console.log('Afternoon limit:', config.appointmentLimits.afternoonLimit);
+    console.log('Choice limits:', config.appointmentLimits.choiceLimits);
+    if (config.appointmentLimits.choiceLimits) {
+      config.appointmentLimits.choiceLimits.forEach(choice => {
+        console.log(`  ${choice.name}: ${choice.limit}`);
+      });
+    }
   }
   
   return {

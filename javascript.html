@@ -919,27 +919,45 @@ function exitAdmin() {
 function loadAdminConfiguration() {
     if (!currentConfig) return;
     
-    // Load general settings
-    document.getElementById('surveyTitle').value = currentConfig.surveyTitle || '';
-    document.getElementById('logoUrl').value = currentConfig.logoUrl || '';
-    document.getElementById('backgroundUrl').value = currentConfig.backgroundUrl || '';
-    document.getElementById('primaryColor').value = currentConfig.primaryColor || '#d82c27';
-    document.getElementById('secondaryColor').value = currentConfig.secondaryColor || '#f8f8f8';
-    document.getElementById('textColor').value = currentConfig.textColor || '#333333';
-    document.getElementById('sheetName').value = currentConfig.sheetName || '';
-    document.getElementById('imageFolder').value = currentConfig.imageFolder || '';
-    document.getElementById('externalSpreadsheetId').value = currentConfig.externalSpreadsheetId || '';
-    document.getElementById('randomizeQuestions').checked = currentConfig.randomizeQuestions || false;
-    document.getElementById('surveyNotes').value = currentConfig.surveyNotes || '';
+    // Load general settings with null checks
+    const surveyTitle = document.getElementById('surveyTitle');
+    const logoUrl = document.getElementById('logoUrl');
+    const backgroundUrl = document.getElementById('backgroundUrl');
+    const primaryColor = document.getElementById('primaryColor');
+    const secondaryColor = document.getElementById('secondaryColor');
+    const textColor = document.getElementById('textColor');
+    const sheetName = document.getElementById('sheetName');
+    const imageFolder = document.getElementById('imageFolder');
+    const externalSpreadsheetId = document.getElementById('externalSpreadsheetId');
+    const randomizeQuestions = document.getElementById('randomizeQuestions');
+    const surveyNotes = document.getElementById('surveyNotes');
     
-    // Load appointment limits configuration
+    if (surveyTitle) surveyTitle.value = currentConfig.surveyTitle || '';
+    if (logoUrl) logoUrl.value = currentConfig.logoUrl || '';
+    if (backgroundUrl) backgroundUrl.value = currentConfig.backgroundUrl || '';
+    if (primaryColor) primaryColor.value = currentConfig.primaryColor || '#d82c27';
+    if (secondaryColor) secondaryColor.value = currentConfig.secondaryColor || '#f8f8f8';
+    if (textColor) textColor.value = currentConfig.textColor || '#333333';
+    if (sheetName) sheetName.value = currentConfig.sheetName || '';
+    if (imageFolder) imageFolder.value = currentConfig.imageFolder || '';
+    if (externalSpreadsheetId) externalSpreadsheetId.value = currentConfig.externalSpreadsheetId || '';
+    if (randomizeQuestions) randomizeQuestions.checked = currentConfig.randomizeQuestions || false;
+    if (surveyNotes) surveyNotes.value = currentConfig.surveyNotes || '';
+    
+    // Load appointment limits configuration with null checks
     const appointmentLimits = currentConfig.appointmentLimits || {};
-    document.getElementById('appointmentLimitsEnabled').checked = appointmentLimits.enabled || false;
-    document.getElementById('appointmentStartDate').value = appointmentLimits.startDate || '';
-    document.getElementById('appointmentEndDate').value = appointmentLimits.endDate || '';
-    document.getElementById('morningLimit').value = appointmentLimits.morningLimit || 10;
-    document.getElementById('afternoonLimit').value = appointmentLimits.afternoonLimit || 15;
-    document.getElementById('allowSunday').checked = appointmentLimits.allowSunday || false;
+    const appointmentLimitsEnabled = document.getElementById('appointmentLimitsEnabled');
+    const appointmentStartDate = document.getElementById('appointmentStartDate');
+    const appointmentEndDate = document.getElementById('appointmentEndDate');
+    const allowSunday = document.getElementById('allowSunday');
+    
+    if (appointmentLimitsEnabled) appointmentLimitsEnabled.checked = appointmentLimits.enabled || false;
+    if (appointmentStartDate) appointmentStartDate.value = appointmentLimits.startDate || '';
+    if (appointmentEndDate) appointmentEndDate.value = appointmentLimits.endDate || '';
+    if (allowSunday) allowSunday.checked = appointmentLimits.allowSunday || false;
+    
+    // Load choice limits
+    loadChoiceLimitsToUI(appointmentLimits.choiceLimits || []);
     
     // Populate variable dropdowns
     populateAppointmentVariables();
@@ -964,28 +982,40 @@ function loadAdminConfiguration() {
     toggleAppointmentLimitsConfig();
     
     // Add event listener for appointment limits checkbox
-    document.getElementById('appointmentLimitsEnabled').addEventListener('change', toggleAppointmentLimitsConfig);
+    if (appointmentLimitsEnabled) {
+        appointmentLimitsEnabled.addEventListener('change', toggleAppointmentLimitsConfig);
+    }
     
-    // Load email notification configuration
+    // Load email notification configuration with null checks
     const emailNotification = currentConfig.emailNotification || {};
-    document.getElementById('emailNotificationEnabled').checked = emailNotification.enabled || false;
-    document.getElementById('emailSubject').value = emailNotification.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG';
-    document.getElementById('emailTemplate').value = emailNotification.template || getDefaultEmailTemplate();
-    document.getElementById('senderEmail').value = emailNotification.senderEmail || '';
-    document.getElementById('senderName').value = emailNotification.senderName || 'Nguyen Dinh Quoc';
+    const emailNotificationEnabled = document.getElementById('emailNotificationEnabled');
+    const emailSubject = document.getElementById('emailSubject');
+    const emailTemplate = document.getElementById('emailTemplate');
+    const senderEmail = document.getElementById('senderEmail');
+    const senderName = document.getElementById('senderName');
+    
+    if (emailNotificationEnabled) emailNotificationEnabled.checked = emailNotification.enabled || false;
+    if (emailSubject) emailSubject.value = emailNotification.subject || 'Xác nhận đăng ký lịch khám sức khỏe tại HMSG';
+    if (emailTemplate) emailTemplate.value = emailNotification.template || getDefaultEmailTemplate();
+    if (senderEmail) senderEmail.value = emailNotification.senderEmail || '';
+    if (senderName) senderName.value = emailNotification.senderName || 'Nguyen Dinh Quoc';
     
     // Show/hide email notification config based on checkbox
     toggleEmailNotificationConfig();
     
     // Add event listener for email notification checkbox
-    document.getElementById('emailNotificationEnabled').addEventListener('change', toggleEmailNotificationConfig);
+    if (emailNotificationEnabled) {
+        emailNotificationEnabled.addEventListener('change', toggleEmailNotificationConfig);
+    }
     
     // Add event listener for primary color changes (real-time update)
-    document.getElementById('primaryColor').addEventListener('input', function(e) {
-        if (isAdminMode) {
-            // Đã xóa bỏ việc cập nhật màu wave vì không còn wave animation
-        }
-    });
+    if (primaryColor) {
+        primaryColor.addEventListener('input', function(e) {
+            if (isAdminMode) {
+                // Đã xóa bỏ việc cập nhật màu wave vì không còn wave animation
+            }
+        });
+    }
     
     // Load question groups
     renderQuestionGroups();
@@ -1285,9 +1315,18 @@ function populatePageOptions() {
 }
 
 function saveGroup() {
-    const title = document.getElementById('groupTitleInput').value.trim();
-    const icon = document.getElementById('groupIconInput').value.trim();
-    const page = parseInt(document.getElementById('groupPageSelect').value);
+    const titleElement = document.getElementById('groupTitleInput');
+    const iconElement = document.getElementById('groupIconInput');
+    const pageElement = document.getElementById('groupPageSelect');
+    
+    if (!titleElement || !iconElement || !pageElement) {
+        console.error('Required elements not found for saveGroup');
+        return;
+    }
+    
+    const title = titleElement.value.trim();
+    const icon = iconElement.value.trim();
+    const page = parseInt(pageElement.value);
     
     if (!title) {
         alert('Vui lòng nhập tiêu đề nhóm câu hỏi');
@@ -1494,12 +1533,24 @@ function removeQuestionOption(button) {
 }
 
 function saveQuestion() {
-    const title = document.getElementById('questionTitleInput').value.trim();
-    const icon = document.getElementById('questionIconInput').value.trim();
-    const type = document.getElementById('questionTypeSelect').value;
-    const required = document.getElementById('questionRequiredInput').checked;
-    const placeholder = document.getElementById('questionPlaceholderInput').value.trim();
-    const emailVariable = document.getElementById('questionVariableInput').value.trim();
+    const titleElement = document.getElementById('questionTitleInput');
+    const iconElement = document.getElementById('questionIconInput');
+    const typeElement = document.getElementById('questionTypeSelect');
+    const requiredElement = document.getElementById('questionRequiredInput');
+    const placeholderElement = document.getElementById('questionPlaceholderInput');
+    const emailVariableElement = document.getElementById('questionVariableInput');
+    
+    if (!titleElement || !iconElement || !typeElement || !requiredElement || !placeholderElement || !emailVariableElement) {
+        console.error('Required elements not found for saveQuestion');
+        return;
+    }
+    
+    const title = titleElement.value.trim();
+    const icon = iconElement.value.trim();
+    const type = typeElement.value;
+    const required = requiredElement.checked;
+    const placeholder = placeholderElement.value.trim();
+    const emailVariable = emailVariableElement.value.trim();
     
     // Đối với divider, không cần title
     if (type !== 'divider' && !title) {
@@ -1569,10 +1620,18 @@ function saveQuestion() {
     
     // Handle dropdown dependent
     if (type === 'select') {
-        const isDependentChecked = document.getElementById('dropdownDependentCheck').checked;
+        const dropdownDependentElement = document.getElementById('dropdownDependentCheck');
+        const dependentQuestionElement = document.getElementById('dependentQuestionSelect');
+        
+        if (!dropdownDependentElement || !dependentQuestionElement) {
+            console.error('Dropdown dependent elements not found');
+            return;
+        }
+        
+        const isDependentChecked = dropdownDependentElement.checked;
         
         if (isDependentChecked) {
-            const dependentQuestion = document.getElementById('dependentQuestionSelect').value;
+            const dependentQuestion = dependentQuestionElement.value;
             
             if (!dependentQuestion) {
                 alert('Vui lòng chọn câu hỏi phụ thuộc');
@@ -1606,7 +1665,12 @@ function saveQuestion() {
             questionData.dependentOptions = dependentOptions;
         } else {
             // Normal dropdown - get options
-            const optionsString = document.getElementById('questionOptionsInput').value.trim();
+            const optionsElement = document.getElementById('questionOptionsInput');
+            if (!optionsElement) {
+                console.error('Options element not found');
+                return;
+            }
+            const optionsString = optionsElement.value.trim();
             questionData.options = [];
             
             if (optionsString) {
@@ -1624,7 +1688,12 @@ function saveQuestion() {
         }
     } else if (['radio', 'checkbox'].includes(type)) {
         // Radio/checkbox options
-        const optionsString = document.getElementById('questionOptionsInput').value.trim();
+        const optionsElement = document.getElementById('questionOptionsInput');
+        if (!optionsElement) {
+            console.error('Options element not found');
+            return;
+        }
+        const optionsString = optionsElement.value.trim();
         questionData.options = [];
         
         if (optionsString) {
@@ -1769,39 +1838,66 @@ function showToast(message) {
 function saveConfiguration() {
     if (!currentConfig) return;
     
-    // Update general settings
-    currentConfig.surveyTitle = document.getElementById('surveyTitle').value;
-    currentConfig.logoUrl = document.getElementById('logoUrl').value;
-    currentConfig.backgroundUrl = document.getElementById('backgroundUrl').value;
-    currentConfig.primaryColor = document.getElementById('primaryColor').value;
-    currentConfig.secondaryColor = document.getElementById('secondaryColor').value;
-    currentConfig.textColor = document.getElementById('textColor').value;
-    currentConfig.sheetName = document.getElementById('sheetName').value;
-    currentConfig.imageFolder = document.getElementById('imageFolder').value;
-    currentConfig.externalSpreadsheetId = document.getElementById('externalSpreadsheetId').value;
-    currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
-    currentConfig.surveyNotes = document.getElementById('surveyNotes').value;
+    // Update general settings with null checks
+    const surveyTitle = document.getElementById('surveyTitle');
+    const logoUrl = document.getElementById('logoUrl');
+    const backgroundUrl = document.getElementById('backgroundUrl');
+    const primaryColor = document.getElementById('primaryColor');
+    const secondaryColor = document.getElementById('secondaryColor');
+    const textColor = document.getElementById('textColor');
+    const sheetName = document.getElementById('sheetName');
+    const imageFolder = document.getElementById('imageFolder');
+    const externalSpreadsheetId = document.getElementById('externalSpreadsheetId');
+    const randomizeQuestions = document.getElementById('randomizeQuestions');
+    const surveyNotes = document.getElementById('surveyNotes');
     
-    // Update appointment limits configuration
+    currentConfig.surveyTitle = surveyTitle ? surveyTitle.value : '';
+    currentConfig.logoUrl = logoUrl ? logoUrl.value : '';
+    currentConfig.backgroundUrl = backgroundUrl ? backgroundUrl.value : '';
+    currentConfig.primaryColor = primaryColor ? primaryColor.value : '';
+    currentConfig.secondaryColor = secondaryColor ? secondaryColor.value : '';
+    currentConfig.textColor = textColor ? textColor.value : '';
+    currentConfig.sheetName = sheetName ? sheetName.value : '';
+    currentConfig.imageFolder = imageFolder ? imageFolder.value : '';
+    currentConfig.externalSpreadsheetId = externalSpreadsheetId ? externalSpreadsheetId.value : '';
+    currentConfig.randomizeQuestions = randomizeQuestions ? randomizeQuestions.checked : false;
+    currentConfig.surveyNotes = surveyNotes ? surveyNotes.value : '';
+    
+    // Update appointment limits configuration with null checks
+    const appointmentLimitsEnabled = document.getElementById('appointmentLimitsEnabled');
+    const appointmentStartDate = document.getElementById('appointmentStartDate');
+    const appointmentEndDate = document.getElementById('appointmentEndDate');
+    const allowSunday = document.getElementById('allowSunday');
+    const appointmentDateVariable = document.getElementById('appointmentDateVariable');
+    const appointmentSessionVariable = document.getElementById('appointmentSessionVariable');
+    
     currentConfig.appointmentLimits = {
-        enabled: document.getElementById('appointmentLimitsEnabled').checked,
-        startDate: document.getElementById('appointmentStartDate').value,
-        endDate: document.getElementById('appointmentEndDate').value,
-        morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
-        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15,
-        allowSunday: document.getElementById('allowSunday').checked,
-        dateVariable: document.getElementById('appointmentDateVariable').value,
-        sessionVariable: document.getElementById('appointmentSessionVariable').value
+        enabled: appointmentLimitsEnabled ? appointmentLimitsEnabled.checked : false,
+        startDate: appointmentStartDate ? appointmentStartDate.value : '',
+        endDate: appointmentEndDate ? appointmentEndDate.value : '',
+        choiceLimits: getChoiceLimitsFromUI(),
+        allowSunday: allowSunday ? allowSunday.checked : false,
+        dateVariable: appointmentDateVariable ? appointmentDateVariable.value : '',
+        sessionVariable: appointmentSessionVariable ? appointmentSessionVariable.value : ''
     };
     
-    // Update email notification configuration
+    // Update email notification configuration with null checks
+    const emailNotificationEnabled = document.getElementById('emailNotificationEnabled');
+    const emailSubject = document.getElementById('emailSubject');
+    const emailTemplate = document.getElementById('emailTemplate');
+    const senderEmail = document.getElementById('senderEmail');
+    const senderName = document.getElementById('senderName');
+    
     currentConfig.emailNotification = {
-        enabled: document.getElementById('emailNotificationEnabled').checked,
-        subject: document.getElementById('emailSubject').value,
-        template: document.getElementById('emailTemplate').value,
-        senderEmail: document.getElementById('senderEmail').value,
-        senderName: document.getElementById('senderName').value
+        enabled: emailNotificationEnabled ? emailNotificationEnabled.checked : false,
+        subject: emailSubject ? emailSubject.value : '',
+        template: emailTemplate ? emailTemplate.value : '',
+        senderEmail: senderEmail ? senderEmail.value : '',
+        senderName: senderName ? senderName.value : ''
     };
+    
+    // Debug: Log choice limits before saving
+    console.log('Choice limits being saved:', currentConfig.appointmentLimits.choiceLimits);
     
     document.getElementById('loadingOverlay').style.display = 'flex';
     
@@ -1895,37 +1991,62 @@ function exitPreview() {
 function saveConfigToMemory() {
     if (!currentConfig) return;
     
-    currentConfig.surveyTitle = document.getElementById('surveyTitle').value;
-    currentConfig.logoUrl = document.getElementById('logoUrl').value;
-    currentConfig.backgroundUrl = document.getElementById('backgroundUrl').value;
-    currentConfig.primaryColor = document.getElementById('primaryColor').value;
-    currentConfig.secondaryColor = document.getElementById('secondaryColor').value;
-    currentConfig.textColor = document.getElementById('textColor').value;
-    currentConfig.sheetName = document.getElementById('sheetName').value;
-    currentConfig.imageFolder = document.getElementById('imageFolder').value;
-    currentConfig.externalSpreadsheetId = document.getElementById('externalSpreadsheetId').value;
-    currentConfig.randomizeQuestions = document.getElementById('randomizeQuestions').checked;
-    currentConfig.surveyNotes = document.getElementById('surveyNotes').value;
+    // Update general settings with null checks
+    const surveyTitle = document.getElementById('surveyTitle');
+    const logoUrl = document.getElementById('logoUrl');
+    const backgroundUrl = document.getElementById('backgroundUrl');
+    const primaryColor = document.getElementById('primaryColor');
+    const secondaryColor = document.getElementById('secondaryColor');
+    const textColor = document.getElementById('textColor');
+    const sheetName = document.getElementById('sheetName');
+    const imageFolder = document.getElementById('imageFolder');
+    const externalSpreadsheetId = document.getElementById('externalSpreadsheetId');
+    const randomizeQuestions = document.getElementById('randomizeQuestions');
+    const surveyNotes = document.getElementById('surveyNotes');
     
-    // Update appointment limits configuration in memory
+    currentConfig.surveyTitle = surveyTitle ? surveyTitle.value : '';
+    currentConfig.logoUrl = logoUrl ? logoUrl.value : '';
+    currentConfig.backgroundUrl = backgroundUrl ? backgroundUrl.value : '';
+    currentConfig.primaryColor = primaryColor ? primaryColor.value : '';
+    currentConfig.secondaryColor = secondaryColor ? secondaryColor.value : '';
+    currentConfig.textColor = textColor ? textColor.value : '';
+    currentConfig.sheetName = sheetName ? sheetName.value : '';
+    currentConfig.imageFolder = imageFolder ? imageFolder.value : '';
+    currentConfig.externalSpreadsheetId = externalSpreadsheetId ? externalSpreadsheetId.value : '';
+    currentConfig.randomizeQuestions = randomizeQuestions ? randomizeQuestions.checked : false;
+    currentConfig.surveyNotes = surveyNotes ? surveyNotes.value : '';
+    
+    // Update appointment limits configuration in memory with null checks
+    const appointmentLimitsEnabled = document.getElementById('appointmentLimitsEnabled');
+    const appointmentStartDate = document.getElementById('appointmentStartDate');
+    const appointmentEndDate = document.getElementById('appointmentEndDate');
+    const allowSunday = document.getElementById('allowSunday');
+    const appointmentDateVariable = document.getElementById('appointmentDateVariable');
+    const appointmentSessionVariable = document.getElementById('appointmentSessionVariable');
+    
     currentConfig.appointmentLimits = {
-        enabled: document.getElementById('appointmentLimitsEnabled').checked,
-        startDate: document.getElementById('appointmentStartDate').value,
-        endDate: document.getElementById('appointmentEndDate').value,
-        morningLimit: parseInt(document.getElementById('morningLimit').value) || 10,
-        afternoonLimit: parseInt(document.getElementById('afternoonLimit').value) || 15,
-        allowSunday: document.getElementById('allowSunday').checked,
-        dateVariable: document.getElementById('appointmentDateVariable').value,
-        sessionVariable: document.getElementById('appointmentSessionVariable').value
+        enabled: appointmentLimitsEnabled ? appointmentLimitsEnabled.checked : false,
+        startDate: appointmentStartDate ? appointmentStartDate.value : '',
+        endDate: appointmentEndDate ? appointmentEndDate.value : '',
+        choiceLimits: getChoiceLimitsFromUI(),
+        allowSunday: allowSunday ? allowSunday.checked : false,
+        dateVariable: appointmentDateVariable ? appointmentDateVariable.value : '',
+        sessionVariable: appointmentSessionVariable ? appointmentSessionVariable.value : ''
     };
     
-    // Update email notification configuration in memory
+    // Update email notification configuration in memory with null checks
+    const emailNotificationEnabled = document.getElementById('emailNotificationEnabled');
+    const emailSubject = document.getElementById('emailSubject');
+    const emailTemplate = document.getElementById('emailTemplate');
+    const senderEmail = document.getElementById('senderEmail');
+    const senderName = document.getElementById('senderName');
+    
     currentConfig.emailNotification = {
-        enabled: document.getElementById('emailNotificationEnabled').checked,
-        subject: document.getElementById('emailSubject').value,
-        template: document.getElementById('emailTemplate').value,
-        senderEmail: document.getElementById('senderEmail').value,
-        senderName: document.getElementById('senderName').value
+        enabled: emailNotificationEnabled ? emailNotificationEnabled.checked : false,
+        subject: emailSubject ? emailSubject.value : '',
+        template: emailTemplate ? emailTemplate.value : '',
+        senderEmail: senderEmail ? senderEmail.value : '',
+        senderName: senderName ? senderName.value : ''
     };
     
     // Đã xóa bỏ việc cập nhật màu wave
@@ -2762,5 +2883,71 @@ document.addEventListener('DOMContentLoaded', function() {
     // Delay setup to ensure form elements are created
     setTimeout(setupAppointmentValidation, 1000);
 });
+
+// Choice Limits Management Functions
+function addChoiceLimit() {
+    const container = document.getElementById('choiceLimitsContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'choice-limit-item';
+    newItem.innerHTML = `
+        <input type="text" placeholder="Tên lựa chọn (vd: Buổi sáng)" class="choice-name">
+        <input type="number" placeholder="Giới hạn" min="1" class="choice-limit">
+        <button type="button" onclick="removeChoiceLimit(this)" class="btn-icon btn-danger">
+            <i class="fas fa-trash"></i>
+        </button>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeChoiceLimit(button) {
+    const item = button.closest('.choice-limit-item');
+    if (item) {
+        item.remove();
+    }
+}
+
+function getChoiceLimitsFromUI() {
+    const items = document.querySelectorAll('.choice-limit-item');
+    const choiceLimits = [];
+    
+    items.forEach(item => {
+        const choiceName = item.querySelector('.choice-name').value.trim();
+        const choiceLimit = parseInt(item.querySelector('.choice-limit').value);
+        
+        if (choiceName && choiceLimit && choiceLimit > 0) {
+            choiceLimits.push({
+                name: choiceName,
+                limit: choiceLimit
+            });
+        }
+    });
+    
+    return choiceLimits;
+}
+
+function loadChoiceLimitsToUI(choiceLimits) {
+    const container = document.getElementById('choiceLimitsContainer');
+    container.innerHTML = ''; // Clear existing items
+    
+    // If no choice limits, add one default item
+    if (!choiceLimits || choiceLimits.length === 0) {
+        addChoiceLimit();
+        return;
+    }
+    
+    // Load existing choice limits
+    choiceLimits.forEach(choiceLimit => {
+        const newItem = document.createElement('div');
+        newItem.className = 'choice-limit-item';
+        newItem.innerHTML = `
+            <input type="text" placeholder="Tên lựa chọn (vd: Buổi sáng)" class="choice-name" value="${choiceLimit.name || ''}">
+            <input type="number" placeholder="Giới hạn" min="1" class="choice-limit" value="${choiceLimit.limit || ''}">
+            <button type="button" onclick="removeChoiceLimit(this)" class="btn-icon btn-danger">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.appendChild(newItem);
+    });
+}
 
 </script>
