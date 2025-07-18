@@ -85,6 +85,7 @@ function createDefaultConfig() {
     imageFolder: "Ảnh khảo sát",
     randomizeQuestions: false,
     surveyNotes: "",
+    hideSubmitButton: false,
     // Cấu hình giới hạn lịch khám
     appointmentLimits: {
       enabled: false,
